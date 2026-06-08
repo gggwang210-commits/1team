@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data and generated artifacts
+*.csv
+*.xlsx
+*.parquet
+*.pkl
+*.joblib
+
+# Keep placeholder files
+!data/**/.gitkeep
+!reports/.gitkeep
+!models/.gitkeep
+
+# OS/editor files
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,9 @@
+# Core MVP dependencies
+pandas
+numpy
+scikit-learn
+streamlit
+matplotlib
+seaborn
+jupyter
+joblib
