@@ -45,6 +45,7 @@ COLUMN_ALIASES = {
     "away_goals": ["away_goals", "away_score", "away_team_goals", "score_away"],
     "home_rank": ["home_rank", "home_fifa_rank", "home_ranking"],
     "away_rank": ["away_rank", "away_fifa_rank", "away_ranking"],
+    "target_result": ["target_result", "result", "outcome", "match_result"],
 }
 
 FEATURE_COLUMNS = [
@@ -118,6 +119,56 @@ def _to_numeric(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce")
 
 
+def _normalize_result_label(value: object) -> object:
+    """Normalize result labels to the MVP Win/Draw/Loss vocabulary."""
+
+    if pd.isna(value):
+        return pd.NA
+
+    normalized = str(value).strip().lower()
+    if normalized in {"win", "w", "won", "home_win", "team_win", "2"}:
+        return "Win"
+    if normalized in {"draw", "d", "tie", "tied", "1"}:
+        return "Draw"
+    if normalized in {"loss", "lose", "lost", "l", "away_win", "team_loss", "0"}:
+        return "Loss"
+
+    raise ValueError(
+        f"Unsupported result label: {value!r}. Expected Win, Draw, Loss, "
+        "or a known alias."
+    )
+
+
+def _result_from_scores(goals_for: pd.Series, goals_against: pd.Series) -> pd.Series:
+    """Derive Win/Draw/Loss labels from goals scored and conceded."""
+
+    result = pd.Series(pd.NA, index=goals_for.index, dtype="object")
+    result[goals_for > goals_against] = "Win"
+    result[goals_for == goals_against] = "Draw"
+    result[goals_for < goals_against] = "Loss"
+    return result
+
+
+def make_team_result_label(target_result: object, venue_side: str) -> object:
+    """Return the target label from the current row's team perspective.
+
+    Source ``target_result`` values in match-level home/away datasets describe
+    the home team's result.  When we create the away-team row, Win and Loss must
+    be flipped; Draw remains Draw because both teams drew.
+    """
+
+    normalized = _normalize_result_label(target_result)
+    if pd.isna(normalized) or venue_side == "home":
+        return normalized
+    if venue_side == "away":
+        if normalized == "Win":
+            return "Loss"
+        if normalized == "Loss":
+            return "Win"
+        return "Draw"
+    raise ValueError(f"Unsupported venue_side: {venue_side!r}. Expected home or away.")
+
+
 def _to_neutral_flag(series: pd.Series) -> pd.Series:
     """Convert common boolean/text neutral-venue values into 0/1 integers."""
 
@@ -159,13 +210,21 @@ def _normalize_long_form(matches: pd.DataFrame) -> pd.DataFrame:
             column_map, ["date", "team", "opponent", "goals_for", "goals_against"]
         )
 
+        goals_for = _to_numeric(matches[column_map["goals_for"]])
+        goals_against = _to_numeric(matches[column_map["goals_against"]])
+        target_result = (
+            matches[column_map["target_result"]].map(_normalize_result_label)
+            if column_map["target_result"]
+            else _result_from_scores(goals_for, goals_against)
+        )
+
         normalized = pd.DataFrame(
             {
                 "date": matches[column_map["date"]],
                 "team": matches[column_map["team"]],
                 "opponent": matches[column_map["opponent"]],
-                "goals_for": _to_numeric(matches[column_map["goals_for"]]),
-                "goals_against": _to_numeric(matches[column_map["goals_against"]]),
+                "goals_for": goals_for,
+                "goals_against": goals_against,
                 "team_rank": _to_numeric(matches[column_map["team_rank"]])
                 if column_map["team_rank"]
                 else pd.NA,
@@ -175,6 +234,10 @@ def _normalize_long_form(matches: pd.DataFrame) -> pd.DataFrame:
                 "neutral_flag": _to_neutral_flag(matches[column_map["neutral"]])
                 if column_map["neutral"]
                 else 0,
+                # Existing team/opponent datasets are already team-perspective,
+                # so target_result and team_result intentionally match here.
+                "target_result": target_result,
+                "team_result": target_result,
                 "source_row": matches.index,
             }
         )
@@ -184,14 +247,25 @@ def _normalize_long_form(matches: pd.DataFrame) -> pd.DataFrame:
         column_map, ["date", "home_team", "away_team", "home_goals", "away_goals"]
     )
 
+    home_goals = _to_numeric(matches[column_map["home_goals"]])
+    away_goals = _to_numeric(matches[column_map["away_goals"]])
+    home_target_result = (
+        matches[column_map["target_result"]].map(_normalize_result_label)
+        if column_map["target_result"]
+        else _result_from_scores(home_goals, away_goals)
+    )
+    away_team_result = home_target_result.map(
+        lambda label: make_team_result_label(label, "away")
+    )
+
     # Create a home-team view: goals_for means the home team's score.
     home_view = pd.DataFrame(
         {
             "date": matches[column_map["date"]],
             "team": matches[column_map["home_team"]],
             "opponent": matches[column_map["away_team"]],
-            "goals_for": _to_numeric(matches[column_map["home_goals"]]),
-            "goals_against": _to_numeric(matches[column_map["away_goals"]]),
+            "goals_for": home_goals,
+            "goals_against": away_goals,
             "team_rank": _to_numeric(matches[column_map["home_rank"]])
             if column_map["home_rank"]
             else pd.NA,
@@ -201,6 +275,10 @@ def _normalize_long_form(matches: pd.DataFrame) -> pd.DataFrame:
             "neutral_flag": _to_neutral_flag(matches[column_map["neutral"]])
             if column_map["neutral"]
             else 0,
+            # Preserve the match-level home-team label and expose the row-level
+            # team target explicitly for model training.
+            "target_result": home_target_result,
+            "team_result": home_target_result,
             "source_row": matches.index,
             "venue_side": "home",
         }
@@ -213,8 +291,8 @@ def _normalize_long_form(matches: pd.DataFrame) -> pd.DataFrame:
             "date": matches[column_map["date"]],
             "team": matches[column_map["away_team"]],
             "opponent": matches[column_map["home_team"]],
-            "goals_for": _to_numeric(matches[column_map["away_goals"]]),
-            "goals_against": _to_numeric(matches[column_map["home_goals"]]),
+            "goals_for": away_goals,
+            "goals_against": home_goals,
             "team_rank": _to_numeric(matches[column_map["away_rank"]])
             if column_map["away_rank"]
             else pd.NA,
@@ -224,6 +302,10 @@ def _normalize_long_form(matches: pd.DataFrame) -> pd.DataFrame:
             "neutral_flag": _to_neutral_flag(matches[column_map["neutral"]])
             if column_map["neutral"]
             else 0,
+            # target_result stays home-team oriented; team_result is flipped to
+            # the away team's perspective for supervised learning.
+            "target_result": home_target_result,
+            "team_result": away_team_result,
             "source_row": matches.index,
             "venue_side": "away",
         }
@@ -288,6 +370,8 @@ def add_recent_form_features(matches: pd.DataFrame) -> pd.DataFrame:
         "source_row",
         "goals_for",
         "goals_against",
+        "target_result",
+        "team_result",
         "win",
         *FEATURE_COLUMNS,
     ]

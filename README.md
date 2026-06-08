@@ -44,6 +44,16 @@ For each target match, the model outputs:
 
 These probabilities are used directly by the group-stage simulator and transformed into team-vs-team advancement probabilities for knockout simulation.
 
+### Baseline Feature and Target Flow
+
+The MVP baseline uses a team-perspective long-form feature table:
+
+1. `data/processed/matches.csv` stores match-level results in `target_result`.
+2. `python src/features/make_features.py` expands home/away matches into one row per team and writes `data/processed/features.csv`.
+3. `target_result` is preserved as the original match-level result, while `team_result` is the training label from the current row's team perspective. Away rows flip Win/Loss and keep Draw unchanged.
+4. `python src/models/train_baseline.py` trains a 3-class classifier on `team_result` and saves `models/baseline_model.pkl` plus `reports/baseline_metrics.csv`.
+5. `python src/models/predict.py` writes `reports/prediction_table.csv` with stable `Win`, `Draw`, and `Loss` probability columns.
+
 ### Group Stage Simulation
 
 The group-stage simulator should produce:

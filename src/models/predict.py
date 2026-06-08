@@ -38,13 +38,18 @@ IDENTIFIER_COLUMNS = [
 # These columns are labels/results from historical matches, not future prediction
 # inputs.  If the saved model does not advertise its own feature names, we remove
 # them before prediction to avoid accidentally giving answers to the model.
-TARGET_LIKE_COLUMNS = ["win", "result", "outcome", "label", "target"]
+TARGET_LIKE_COLUMNS = [
+    "win",
+    "result",
+    "outcome",
+    "label",
+    "target",
+    "target_result",
+    "team_result",
+]
 
-# Project convention for a future three-class baseline model if labels are saved
-# as integers.  Update this mapping if the training pipeline uses a different
-# encoding.  The feature-engineering module currently creates a binary ``win``
-# helper column, so this mapping is only applied when the model explicitly has
-# all three classes: 0, 1, and 2.
+# Project convention if a future training pipeline saves labels as integers.
+# The current baseline trains directly on text labels: Loss, Draw, Win.
 NUMERIC_CLASS_LABELS = {0: "Loss", 1: "Draw", 2: "Win"}
 
 # User-facing probability column order expected by reports and simulations.
