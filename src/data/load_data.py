@@ -15,7 +15,9 @@ MATCHES_PATH = RAW_DATA_DIR / "matches.csv"
 RANKINGS_PATH = RAW_DATA_DIR / "fifa_rankings.csv"
 
 # Common date-like column names seen in football match/ranking CSV files.
-DATE_COLUMN_CANDIDATES = ("date", "rank_date", "ranking_date", "updated_at")
+# Keep this list broad because public football CSV files often use different
+# labels for the same idea.
+DATE_COLUMN_CANDIDATES = ("date", "match_date", "rank_date", "ranking_date", "updated_at")
 
 
 def _read_csv_with_dates(path: Path | str, *, dataset_name: str) -> pd.DataFrame:
@@ -44,20 +46,23 @@ def _read_csv_with_dates(path: Path | str, *, dataset_name: str) -> pd.DataFrame
 
     # Convert date columns only when they exist. errors='coerce' keeps the
     # pipeline running by turning unparseable date strings into NaT values.
-    for column in DATE_COLUMN_CANDIDATES:
-        if column in data.columns:
-            data[column] = pd.to_datetime(data[column], errors="coerce")
+    # We compare lower-case names so files with headers like "Date" still work.
+    lower_case_columns = {str(column).strip().lower(): column for column in data.columns}
+    for column_name in DATE_COLUMN_CANDIDATES:
+        original_column = lower_case_columns.get(column_name)
+        if original_column is not None:
+            data[original_column] = pd.to_datetime(data[original_column], errors="coerce")
 
     return data
 
 
 def load_matches(path: Path | str = MATCHES_PATH) -> pd.DataFrame:
-    """Load raw international match results from CSV."""
+    """Load ``data/raw/matches.csv`` with parsed match dates."""
 
     return _read_csv_with_dates(path, dataset_name="matches")
 
 
 def load_rankings(path: Path | str = RANKINGS_PATH) -> pd.DataFrame:
-    """Load raw FIFA ranking data from CSV."""
+    """Load ``data/raw/fifa_rankings.csv`` with parsed ranking dates."""
 
     return _read_csv_with_dates(path, dataset_name="rankings")
