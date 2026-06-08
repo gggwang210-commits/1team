@@ -91,6 +91,8 @@ def clean_matches(matches: pd.DataFrame) -> pd.DataFrame:
 
     cleaned = _standardize_columns(matches)
 
+    # Rename the important input columns to one project-wide spelling. This
+    # keeps the rest of the pipeline simple and easier for beginners to follow.
     cleaned = _rename_first_available(cleaned, MATCH_DATE_CANDIDATES, "date")
     cleaned = _rename_first_available(cleaned, HOME_TEAM_CANDIDATES, "home_team")
     cleaned = _rename_first_available(cleaned, AWAY_TEAM_CANDIDATES, "away_team")
@@ -109,6 +111,8 @@ def clean_matches(matches: pd.DataFrame) -> pd.DataFrame:
             cleaned[score_column] = pd.to_numeric(cleaned[score_column], errors="coerce")
 
     if {"home_score", "away_score"}.issubset(cleaned.columns):
+        # target_result is from the home team's point of view:
+        # Win = home_score > away_score, Draw = equal, Loss = home_score < away_score.
         cleaned["target_result"] = pd.NA
         cleaned.loc[cleaned["home_score"] > cleaned["away_score"], "target_result"] = "Win"
         cleaned.loc[cleaned["home_score"] == cleaned["away_score"], "target_result"] = "Draw"
@@ -118,7 +122,7 @@ def clean_matches(matches: pd.DataFrame) -> pd.DataFrame:
 
 
 def clean_rankings(rankings: pd.DataFrame) -> pd.DataFrame:
-    """Clean FIFA ranking data for merging with match rows."""
+    """Clean FIFA ranking data for date-aware merging with match rows."""
 
     cleaned = _standardize_columns(rankings)
 
