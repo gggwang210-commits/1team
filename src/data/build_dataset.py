@@ -14,8 +14,13 @@ CURRENT_DIR = Path(__file__).resolve().parent
 if str(CURRENT_DIR) not in sys.path:
     sys.path.append(str(CURRENT_DIR))
 
-from clean_data import clean_matches, clean_rankings
-from load_data import load_matches, load_rankings
+try:
+    # Relative imports work when this module is imported as src.data.build_dataset.
+    from .clean_data import clean_matches, clean_rankings
+    from .load_data import load_raw_data
+except ImportError:  # pragma: no cover - supports running this file directly.
+    from clean_data import clean_matches, clean_rankings
+    from load_data import load_raw_data
 
 PROCESSED_DATA_DIR = Path("data/processed")
 PROCESSED_MATCHES_PATH = PROCESSED_DATA_DIR / "matches.csv"
@@ -50,10 +55,10 @@ def _add_latest_rank_before_match(
     team_column: str,
     rank_column: str,
 ) -> pd.DataFrame:
-    """Add the latest FIFA rank available on or before each match date.
+    """Add the latest FIFA rank available before each match date.
 
-    We do not use rankings published after a match because that would leak future
-    information into the model. Each row is matched by team name and date.
+    We do not use rankings published on or after a match because that would leak
+    future information into the model. Each row is matched by team name and date.
     """
 
     _validate_required_columns(matches, {"date", team_column}, "Matches")
@@ -69,6 +74,11 @@ def _add_latest_rank_before_match(
     # Rows without a match date cannot be safely matched to a historical
     # ranking, so they stay in the output with a blank rank value.
     valid_match_keys = match_keys.dropna(subset=[team_column, "date"])
+
+    # Convert ranks to numeric before merging so rank_difference can be computed
+    # as a normal number after both home and away ranks are attached.
+    rank_lookup = rank_lookup.copy()
+    rank_lookup["rank"] = pd.to_numeric(rank_lookup["rank"], errors="coerce")
 
     joined_parts: list[pd.DataFrame] = []
     for team_name, team_matches in valid_match_keys.groupby(team_column):
@@ -88,6 +98,10 @@ def _add_latest_rank_before_match(
             left_on="date",
             right_on="ranking_date",
             direction="backward",
+            # "Before each match date" means we should not use a ranking that
+            # was published on the exact same date as the match. That avoids
+            # accidental future-data leakage in model training.
+            allow_exact_matches=False,
         )
         rank_result = latest_rank[["_match_id", "rank"]].rename(
             columns={"rank": rank_column}
@@ -107,8 +121,13 @@ def _add_latest_rank_before_match(
 def build_dataset() -> pd.DataFrame:
     """Create and save the processed match-level modeling dataset."""
 
-    matches = clean_matches(load_matches())
-    rankings = clean_rankings(load_rankings())
+    # Step 1: load the two required raw CSV files from data/raw/.
+    raw_matches, raw_rankings = load_raw_data()
+
+    # Step 2: clean column names, parse dates, standardize team names, and add
+    # target_result before we create ranking-based features.
+    matches = clean_matches(raw_matches)
+    rankings = clean_rankings(raw_rankings)
 
     _validate_required_columns(matches, {"date", "home_team", "away_team"}, "Matches")
     _validate_required_columns(rankings, {"team", "rank", "ranking_date"}, "Rankings")
@@ -135,6 +154,8 @@ def build_dataset() -> pd.DataFrame:
 
     # Lower FIFA rank numbers are stronger, so a negative value means the home
     # team was ranked better than the away team at match time.
+    dataset["home_rank"] = pd.to_numeric(dataset["home_rank"], errors="coerce")
+    dataset["away_rank"] = pd.to_numeric(dataset["away_rank"], errors="coerce")
     dataset["rank_difference"] = dataset["home_rank"] - dataset["away_rank"]
 
     # Keep the requested columns when present. This makes the output stable but
@@ -144,6 +165,8 @@ def build_dataset() -> pd.DataFrame:
     ]
     dataset = dataset[available_output_columns]
 
+    # Create data/processed if it does not exist, then save the final CSV that
+    # notebooks and model-training scripts can use.
     PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     dataset.to_csv(PROCESSED_MATCHES_PATH, index=False)
 
