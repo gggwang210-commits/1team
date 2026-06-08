@@ -8,6 +8,29 @@ Machine Learning based prediction system for:
 - Round of 32 qualification probability
 - World Cup tournament simulation
 
+
+## Team Workflow
+
+### Role Examples
+
+- Data collection / cleaning
+- Feature engineering
+- Modeling
+- Evaluation
+- Streamlit demo
+- Presentation/report
+
+### Milestones
+
+| Milestone | Owner | Expected Output | Due Date |
+| --- | --- | --- | --- |
+| Data quality check | TBD | Data quality report with missing values, duplicates, leakage risks, and dataset readiness notes | TBD |
+| Feature table v1 | TBD | Model-ready feature table for baseline experiments | TBD |
+| Baseline model v1 | TBD | Initial Logistic Regression and/or Random Forest baseline model artifacts | TBD |
+| Evaluation report | TBD | Accuracy, Log Loss, Brier Score, confusion matrix, and interpretation notes | TBD |
+| Streamlit MVP | TBD | Runnable Streamlit demo showing Korea Republic group-stage outcome probabilities | TBD |
+| Final presentation | TBD | Final slide deck/report summarizing problem, data, model, results, demo, and next steps | TBD |
+
 ## MVP Scope
 
 The current MVP focuses on predicting Korea Republic group-stage match outcome probabilities:
