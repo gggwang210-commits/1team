@@ -66,3 +66,22 @@ def load_rankings(path: Path | str = RANKINGS_PATH) -> pd.DataFrame:
     """Load ``data/raw/fifa_rankings.csv`` with parsed ranking dates."""
 
     return _read_csv_with_dates(path, dataset_name="rankings")
+
+
+def load_raw_data(
+    matches_path: Path | str = MATCHES_PATH,
+    rankings_path: Path | str = RANKINGS_PATH,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Load both required raw CSV files used by the dataset builder.
+
+    This convenience function makes the pipeline entry point very explicit:
+    first read ``data/raw/matches.csv``, then read
+    ``data/raw/fifa_rankings.csv``. Both returned dataframes already have
+    recognizable date columns parsed as pandas datetime values.
+    """
+
+    # Keep the two loading calls together so beginners can see exactly which
+    # raw files are required before the feature-building step can run.
+    matches = load_matches(matches_path)
+    rankings = load_rankings(rankings_path)
+    return matches, rankings

@@ -14,9 +14,13 @@ import pandas as pd
 # team discovers naming differences in new raw data sources.
 TEAM_NAME_MAP = {
     "Korea Republic": "Korea Republic",
+    "Republic of Korea": "Korea Republic",
     "South Korea": "Korea Republic",
     "USA": "United States",
+    "U.S.A.": "United States",
+    "USMNT": "United States",
     "United States": "United States",
+    "United States of America": "United States",
     "IR Iran": "Iran",
     "Iran": "Iran",
 }
@@ -83,7 +87,15 @@ def standardize_team_name(name: str) -> str:
     # Convert to string and collapse repeated spaces so mapping keys match even
     # when raw data has accidental leading/trailing spaces.
     cleaned_name = " ".join(str(name).strip().split())
-    return TEAM_NAME_MAP.get(cleaned_name, cleaned_name)
+
+    # Try an exact alias first, then a case-insensitive alias. This handles
+    # common CSV differences such as "USA" versus "usa" without changing names
+    # that are already clean.
+    if cleaned_name in TEAM_NAME_MAP:
+        return TEAM_NAME_MAP[cleaned_name]
+
+    lower_aliases = {alias.lower(): standard for alias, standard in TEAM_NAME_MAP.items()}
+    return lower_aliases.get(cleaned_name.lower(), cleaned_name)
 
 
 def clean_matches(matches: pd.DataFrame) -> pd.DataFrame:
@@ -113,10 +125,20 @@ def clean_matches(matches: pd.DataFrame) -> pd.DataFrame:
     if {"home_score", "away_score"}.issubset(cleaned.columns):
         # target_result is from the home team's point of view:
         # Win = home_score > away_score, Draw = equal, Loss = home_score < away_score.
+        score_rows = cleaned[["home_score", "away_score"]].notna().all(axis=1)
         cleaned["target_result"] = pd.NA
-        cleaned.loc[cleaned["home_score"] > cleaned["away_score"], "target_result"] = "Win"
-        cleaned.loc[cleaned["home_score"] == cleaned["away_score"], "target_result"] = "Draw"
-        cleaned.loc[cleaned["home_score"] < cleaned["away_score"], "target_result"] = "Loss"
+        cleaned.loc[
+            score_rows & (cleaned["home_score"] > cleaned["away_score"]),
+            "target_result",
+        ] = "Win"
+        cleaned.loc[
+            score_rows & (cleaned["home_score"] == cleaned["away_score"]),
+            "target_result",
+        ] = "Draw"
+        cleaned.loc[
+            score_rows & (cleaned["home_score"] < cleaned["away_score"]),
+            "target_result",
+        ] = "Loss"
 
     return cleaned
 
