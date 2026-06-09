@@ -113,6 +113,7 @@ The implemented MVP pipeline now has three explicit stages:
 
    ```bash
    python src/data/build_dataset.py
+   python src/features/make_features.py
    ```
 
 5. Create model-ready features.
