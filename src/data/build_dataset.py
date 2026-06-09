@@ -51,13 +51,15 @@ def _add_target_result(df: pd.DataFrame) -> pd.DataFrame:
     labeled["home_score"] = pd.to_numeric(labeled["home_score"], errors="coerce")
     labeled["away_score"] = pd.to_numeric(labeled["away_score"], errors="coerce")
 
-    labeled["target_result"] = "DRAW"
-    labeled.loc[labeled["home_score"] > labeled["away_score"], "target_result"] = (
-        "HOME_WIN"
-    )
-    labeled.loc[labeled["home_score"] < labeled["away_score"], "target_result"] = (
-        "AWAY_WIN"
-    )
+    # The model's target contract uses the home team's perspective:
+    # Win  = home_score > away_score
+    # Draw = home_score == away_score
+    # Loss = home_score < away_score
+    labeled["target_result"] = "Draw"
+    home_wins = labeled["home_score"] > labeled["away_score"]
+    home_losses = labeled["home_score"] < labeled["away_score"]
+    labeled.loc[home_wins, "target_result"] = "Win"
+    labeled.loc[home_losses, "target_result"] = "Loss"
     return labeled
 
 
