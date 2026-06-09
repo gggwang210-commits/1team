@@ -35,21 +35,12 @@ probability.
 
 ## Evaluation
 
-MVP implemented metrics:
+Implemented baseline metrics:
 
 - Accuracy
 - Macro F1
-
-The MVP pipeline writes these run-specific metrics to `reports/baseline_metrics.csv`
-and summarizes them in `reports/model_evaluation.md`. Generated report files are
-not committed, so this spec should not include fixed performance claims unless
-they come from a clearly identified pipeline run, dataset, split strategy, and
-commit.
-
-Later extension / nice to have after probability calibration:
-
 - Log Loss
-- Brier Score
+- One-vs-rest multiclass Brier Score
 
 ## Deliverables
 

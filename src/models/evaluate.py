@@ -21,7 +21,7 @@ BASELINE_METRICS_PATH = REPORTS_DIR / "baseline_metrics.csv"
 PREDICTION_TABLE_PATH = REPORTS_DIR / "prediction_table.csv"
 EVALUATION_REPORT_PATH = REPORTS_DIR / "model_evaluation.md"
 
-REQUIRED_METRIC_COLUMNS = ("accuracy", "macro_f1")
+REQUIRED_METRIC_COLUMNS = ("accuracy", "macro_f1", "log_loss", "brier_score")
 OPTIONAL_SPLIT_COLUMN = "split_method"
 OPTIONAL_MODEL_COLUMN = "model"
 OPTIONAL_FEATURE_SET_COLUMN = "feature_set"
@@ -95,7 +95,7 @@ def validate_metrics(metrics_df: pd.DataFrame) -> None:
     if missing_columns:
         raise ValueError(
             "baseline_metrics.csv is missing required column(s): "
-            f"{', '.join(missing_columns)}. Expected Accuracy and Macro F1 metrics."
+            f"{', '.join(missing_columns)}. Expected Accuracy, Macro F1, Log Loss, and Brier Score metrics."
         )
 
     for column in REQUIRED_METRIC_COLUMNS:
@@ -110,7 +110,8 @@ def get_best_metric_row(metrics_df: pd.DataFrame) -> pd.Series:
 
     Macro F1 is prioritized because Win/Draw/Loss classes can be imbalanced; it
     gives each class equal weight instead of letting the most common class hide
-    poor minority-class performance.
+    poor minority-class performance. Probability metrics are reported alongside
+    the selected row, but they do not decide the MVP baseline winner yet.
     """
     sortable_metrics = metrics_df.copy()
     sortable_metrics["accuracy"] = pd.to_numeric(sortable_metrics["accuracy"])
@@ -127,7 +128,7 @@ def format_metric(value: Any) -> str:
 
 
 def build_metrics_table(metrics_df: pd.DataFrame) -> str:
-    """Build a compact markdown table with model, Accuracy, and Macro F1."""
+    """Build a compact markdown table with all implemented baseline metrics."""
     display_columns = [
         column
         for column in (
@@ -200,12 +201,15 @@ def build_markdown_report(
         f"{feature_set_line}"
         f"- Accuracy: **{format_metric(best_row['accuracy'])}**\n"
         f"- Macro F1: **{format_metric(best_row['macro_f1'])}**\n"
+        f"- Log Loss: **{format_metric(best_row['log_loss'])}**\n"
+        f"- Brier Score: **{format_metric(best_row['brier_score'])}**\n"
         f"{split_section}\n"
         "## All Baseline Metrics\n\n"
         f"{build_metrics_table(metrics_df)}\n\n"
         f"{build_prediction_summary(prediction_df)}\n"
         "## Limitations\n\n"
-        "These MVP metrics are preliminary and depend on dataset quality, "
+        "These MVP metrics, including probability metrics such as Log Loss "
+        "and Brier Score, are preliminary and depend on dataset quality, "
         "feature coverage, labeling consistency, and the representativeness of "
         "the train/test split. The `with_team_identifiers` feature set can "
         "overstate performance on tiny demo data because team-name columns may "
