@@ -31,6 +31,10 @@ METRICS_PATH = PROJECT_ROOT / "reports" / "baseline_metrics.csv"
 # The target may use either name depending on the feature engineering step.
 TARGET_CANDIDATES = ("target_result", "target")
 
+# Baseline training is explicitly scoped to three soccer outcome labels.
+# Keeping this as a set makes exact membership checks easy to read.
+EXPECTED_TARGET_CLASSES = {"Win", "Draw", "Loss"}
+
 # Default split used throughout this script. Validation uses the same value so
 # users get a clear dataset-size message before scikit-learn is called.
 DEFAULT_TEST_SIZE = 0.2
@@ -102,6 +106,19 @@ def validate_input_data(df: pd.DataFrame, test_size: float = DEFAULT_TEST_SIZE) 
             "label those rows before training."
         )
 
+    # Validate label names before checking counts so data-quality errors are
+    # reported directly instead of surfacing later as split or model errors.
+    actual_target_classes = set(df[target_column].dropna().unique())
+    missing_target_classes = EXPECTED_TARGET_CLASSES - actual_target_classes
+    unexpected_target_classes = actual_target_classes - EXPECTED_TARGET_CLASSES
+    if missing_target_classes or unexpected_target_classes:
+        raise ValueError(
+            f"Target column '{target_column}' must contain exactly these labels: "
+            f"{sorted(EXPECTED_TARGET_CLASSES)}. "
+            f"Missing labels: {sorted(missing_target_classes)}. "
+            f"Unexpected labels: {sorted(unexpected_target_classes)}."
+        )
+
     feature_columns = get_feature_columns(df)
     usable_feature_columns = [
         column for column in feature_columns if not df[column].isna().all()
@@ -120,7 +137,7 @@ def validate_input_data(df: pd.DataFrame, test_size: float = DEFAULT_TEST_SIZE) 
             f"Target column '{target_column}' must contain at least two classes "
             "before a classifier can be trained. Current class counts: "
             f"{class_counts.to_dict()}. For Win/Draw/Loss modeling, include examples "
-            "from at least two outcomes, ideally HOME_WIN, DRAW, and AWAY_WIN."
+            "from the expected Win, Draw, and Loss outcomes."
         )
 
     if class_counts.min() < 2:
