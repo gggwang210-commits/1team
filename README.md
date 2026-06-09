@@ -31,7 +31,7 @@ Research & MVP Phase
 
 ## MVP Data Flow
 
-The implemented MVP pipeline now has three explicit stages:
+The implemented MVP pipeline now has five explicit stages:
 
 1. `src/data/build_dataset.py` standardizes international match-result data and writes `data/processed/matches.csv`.
    - If no compatible raw CSV exists in `data/raw/`, it creates a built-in demo dataset.
@@ -43,6 +43,9 @@ The implemented MVP pipeline now has three explicit stages:
    - Supported target columns: `target_result` or `target`.
    - Minimum requirements: at least two target classes, at least one non-empty usable feature column, at least two rows per class, and enough rows for the configured train/test split.
    - With the default 20% split and three classes, the MVP needs at least 15 labeled rows.
+4. `src/models/predict.py` loads the trained baseline model and writes `reports/prediction_table.csv`.
+   - This prediction artifact is required before MVP evaluation so the smoke test verifies inference as well as training.
+5. `src/models/evaluate.py` validates `reports/baseline_metrics.csv` and the required `reports/prediction_table.csv`, then writes `reports/model_evaluation.md`.
 
 ## Project Structure
 
@@ -127,13 +130,21 @@ The implemented MVP pipeline now has three explicit stages:
    python src/models/train_baseline.py
    ```
 
-7. Evaluate baseline models.
+7. Generate the required prediction table.
+
+   `src/models/predict.py` must run before `src/models/evaluate.py` in the MVP workflow. Evaluation now treats `reports/prediction_table.csv` as a required artifact, so it will fail if predictions are missing or empty.
+
+   ```bash
+   python src/models/predict.py
+   ```
+
+8. Evaluate baseline models.
 
    ```bash
    python src/models/evaluate.py
    ```
 
-8. Launch the Streamlit demo.
+9. Launch the Streamlit demo.
 
    ```bash
    streamlit run app/streamlit_app.py
