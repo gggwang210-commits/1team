@@ -62,7 +62,7 @@ Research & MVP Phase
 
 The implemented MVP pipeline now has five explicit stages:
 
-Generated report files are intentionally not committed. Running the pipeline recreates `reports/baseline_metrics.csv`, `reports/prediction_table.csv`, `reports/model_evaluation.md`, and `reports/smoke_test_report.md` from the current code, data, and model artifacts. Treat those files as local evidence for the current run rather than authoritative checked-in model results.
+Generated report files are intentionally not committed. Running the pipeline recreates `reports/data_quality_summary.md`, `reports/baseline_metrics.csv`, `reports/prediction_table.csv`, `reports/model_evaluation.md`, and `reports/smoke_test_report.md` from the current code, data, and model artifacts. Treat those files as local evidence for the current run rather than authoritative checked-in model results.
 
 1. `src/data/build_dataset.py` standardizes international match-result data and writes `data/processed/matches.csv`.
    - If no compatible raw CSV exists in `data/raw/`, it creates a built-in demo dataset.
@@ -70,6 +70,7 @@ Generated report files are intentionally not committed. Running the pipeline rec
    - Full international raw datasets are filtered to rows where Korea Republic is either `home_team` or `away_team`.
    - `target_result` is the score-derived home-team perspective label.
    - `target_result_korea_perspective` is the MVP label. It matches `target_result` when Korea Republic is the home team, reverses home `Win`/`Loss` when Korea Republic is the away team, and keeps `Draw` unchanged.
+   - `reports/data_quality_summary.md` is generated with row count, missing counts, and target distribution for a quick MVP sanity check.
 2. `src/features/make_features.py` converts processed match rows into model-ready pre-match features and writes `data/processed/features.csv`.
    - Final scores are used only to create result labels.
    - The training target is explicitly selected from `target_result_korea_perspective` and saved as `target_result` in the feature table for a stable modeling schema.
@@ -241,7 +242,7 @@ Run the MVP pipeline in order:
 
 ## MVP Deliverables
 
-- Data Quality Report
+- Data Quality Report (notebook/manual check currently; minimal summary generated at `reports/data_quality_summary.md` by `python src/data/build_dataset.py`)
 - Baseline Model
 - Prediction Table
 - Streamlit Demo

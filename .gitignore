@@ -23,6 +23,7 @@ env/
 *.joblib
 
 # Generated reports: recreate by running the MVP pipeline.
+reports/data_quality_summary.md
 reports/baseline_metrics.csv
 reports/prediction_table.csv
 reports/model_evaluation.md
