@@ -98,7 +98,10 @@ The full modeling logic is not implemented yet. After data preparation and basel
 
    ```bash
    python src/data/build_dataset.py
+   python src/features/make_features.py
    ```
+
+   The feature engineering step reads `data/processed/matches.csv`, creates `target_result` plus simple MVP features, and writes `data/processed/features.csv`.
 
 5. Train baseline models.
 
