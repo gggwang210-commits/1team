@@ -20,7 +20,9 @@ All MVP labels and predictions use **Korea Republic's perspective**. For example
 `Win` means Korea Republic wins the match, regardless of whether Korea Republic
 is listed as the home or away team.
 
-Later phases may expand to Round of 32 qualification probability and full tournament simulation.
+MVP does not directly classify champion teams or run a tournament simulator.
+Later phases may expand tournament simulation only in this lightweight order:
+match probabilities → group simulation → knockout simulation → champion probability.
 
 ### Target column contract
 

@@ -17,6 +17,11 @@ Outputs:
 Target definition: `Win`, `Draw`, and `Loss` are always from Korea Republic's
 perspective, regardless of whether Korea Republic is home or away.
 
+MVP does not directly classify champion teams or run a tournament simulator.
+Post-MVP tournament simulation should remain a lightweight extension in this
+order: match probabilities → group simulation → knockout simulation → champion
+probability.
+
 ## Data Sources
 
 - International Football Results (Kaggle)
