@@ -22,6 +22,21 @@ is listed as the home or away team.
 
 Later phases may expand to Round of 32 qualification probability and full tournament simulation.
 
+### Target column contract
+
+The project intentionally uses result labels from different perspectives at
+different pipeline stages. Keep this contract explicit to avoid target leakage
+or accidentally training on the wrong label:
+
+- `matches.csv.target_result` = home-team perspective result label.
+- `matches.csv.target_result_korea_perspective` = Korea Republic perspective result label.
+- `features.csv.target_result` = model target sourced from Korea Republic perspective.
+- `features.csv.target_result_korea_perspective` = retained audit copy of the Korea Republic perspective target, excluded from every model input feature set.
+
+`src/models/train_baseline.py` treats `features.csv.target_result` as the only
+modeling target and excludes every target/result/score-like column from the
+feature matrix before preprocessing and training.
+
 ## Stack
 
 - Python
@@ -46,9 +61,11 @@ The implemented MVP pipeline now has five explicit stages:
 2. `src/features/make_features.py` converts processed match rows into model-ready pre-match features and writes `data/processed/features.csv`.
    - Final scores are used only to create result labels.
    - The training target is explicitly selected from `target_result_korea_perspective` and saved as `target_result` in the feature table for a stable modeling schema.
+   - `target_result_korea_perspective` is also retained in `features.csv` as an audit column so reviewers can verify that the modeling target came from the Korea Republic perspective.
    - Score/result leakage columns are not included as model features.
 3. `src/models/train_baseline.py` validates the feature table before model fitting.
    - Supported target column: `target_result`, defined as Korea Republic-perspective Win/Draw/Loss.
+   - The audit column `target_result_korea_perspective` must match `target_result` when present, but it is excluded from all model input feature sets.
    - Minimum requirements: at least two target classes, at least one non-empty usable feature column, at least two rows per class, and enough rows for the configured train/test split.
    - With the default 20% split and three classes, the MVP needs at least 15 labeled rows.
    - Baseline metrics are recorded for two explicit feature sets: `ranking_context_only` excludes `home_team` and `away_team`, while `with_team_identifiers` keeps those team-name identifiers for comparison.

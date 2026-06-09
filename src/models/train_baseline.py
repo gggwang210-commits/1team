@@ -46,20 +46,24 @@ DEFAULT_TEST_SIZE = 0.2
 # newer matches in test. This better matches real prediction usage.
 DATE_CANDIDATES = ("date", "match_date", "game_date")
 
-# Columns with these names are known result-like fields, targets, or dates, so they
-# should not be used as model inputs. Keeping them out reduces leakage risk.
-EXCLUDED_FEATURE_COLUMNS = {
-    "target_result",
-    "target_result_korea_perspective",
+# Columns with these names are known result-like fields or targets, so they
+# should never be used as model inputs. Keeping this list separate from date
+# columns makes the leakage contract easy to audit when feature schemas change.
+RESULT_LIKE_COLUMNS = {
+    TARGET_COLUMN,
+    SOURCE_TARGET_COLUMN,
     "target",
-    "date",
-    "match_date",
-    "game_date",
     "result",
     "score",
     "home_score",
     "away_score",
 }
+
+# Dates are useful for time-aware splitting but are not fed into the baseline
+# models as predictive inputs.
+DATE_COLUMNS = {"date", "match_date", "game_date"}
+
+EXCLUDED_FEATURE_COLUMNS = RESULT_LIKE_COLUMNS | DATE_COLUMNS
 
 # Team names are not direct match results, but they are high-cardinality team
 # identifiers. On a tiny demo dataset, a model can memorize team-outcome patterns
@@ -84,13 +88,36 @@ def load_features(path: Path = FEATURES_PATH) -> pd.DataFrame:
 
 
 def find_target_column(df: pd.DataFrame) -> str:
-    """Return the explicit Korea-perspective target column name."""
-    if TARGET_COLUMN in df.columns:
-        return TARGET_COLUMN
-    raise ValueError(
-        f"Missing target column '{TARGET_COLUMN}'. Run src/features/make_features.py "
-        f"so '{SOURCE_TARGET_COLUMN}' is copied into the model target."
-    )
+    """Return the explicit Korea-perspective modeling target column name.
+
+    ``features.csv`` may also retain ``target_result_korea_perspective`` as an
+    audit column, but the model target remains ``target_result``. This function
+    also guards the leakage contract: every result-like column must be listed in
+    ``EXCLUDED_FEATURE_COLUMNS`` before training can proceed.
+    """
+    unexcluded_result_columns = RESULT_LIKE_COLUMNS - EXCLUDED_FEATURE_COLUMNS
+    if unexcluded_result_columns:
+        raise RuntimeError(
+            "Result-like columns must be excluded from model inputs: "
+            f"{sorted(unexcluded_result_columns)}."
+        )
+
+    if TARGET_COLUMN not in df.columns:
+        raise ValueError(
+            f"Missing target column '{TARGET_COLUMN}'. Run src/features/make_features.py "
+            f"so '{SOURCE_TARGET_COLUMN}' is copied into the model target."
+        )
+
+    if SOURCE_TARGET_COLUMN in df.columns:
+        target_values = df[TARGET_COLUMN].astype(str).str.strip()
+        source_values = df[SOURCE_TARGET_COLUMN].astype(str).str.strip()
+        if not target_values.equals(source_values):
+            raise ValueError(
+                f"Audit column '{SOURCE_TARGET_COLUMN}' must match modeling target "
+                f"'{TARGET_COLUMN}'. Regenerate features with src/features/make_features.py."
+            )
+
+    return TARGET_COLUMN
 
 
 def find_date_column(df: pd.DataFrame) -> Optional[str]:

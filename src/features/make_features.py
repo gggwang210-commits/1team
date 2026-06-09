@@ -84,9 +84,22 @@ def make_features(matches: pd.DataFrame) -> pd.DataFrame:
     # Simple categorical context features. OneHotEncoder in train_baseline.py
     # will convert these strings into numeric columns for the models.
     features["is_korea_home"] = (features["home_team"] == "Korea Republic").astype(int)
-    # Keep the training target name stable for the modeling layer while sourcing
-    # it from the Korea-perspective label created in build_dataset.py.
-    features["target_result"] = matches[TARGET_COLUMN].astype(str).str.strip()
+    korea_target = matches[TARGET_COLUMN].astype(str).str.strip()
+
+    # TARGET COLUMN CONTRACT — read this before renaming either column:
+    # - matches.csv.target_result is the traditional HOME-TEAM perspective label.
+    # - matches.csv.target_result_korea_perspective is the KOREA-perspective label.
+    # - features.csv.target_result is intentionally the model target sourced from
+    #   the Korea-perspective label, not from matches.csv.target_result.
+    #
+    # This stable name keeps the modeling layer simple while avoiding ambiguity
+    # when Korea Republic is listed as the away team.
+    features["target_result"] = korea_target
+
+    # Retain the source target as an audit column so reviewers can verify the
+    # feature target contract in features.csv. train_baseline.py excludes this
+    # result-like column from every model input feature set to prevent leakage.
+    features["target_result_korea_perspective"] = korea_target
 
     features = features.dropna(subset=["date", "target_result"]).reset_index(drop=True)
     return features
