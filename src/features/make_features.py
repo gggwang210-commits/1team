@@ -1,16 +1,13 @@
-"""Create the MVP feature table from processed match data.
+"""Create model-ready MVP features from standardized match data.
 
-Data flow for this step:
-1. Read ``data/processed/matches.csv``.
-2. Validate that the columns required to describe each match result exist.
-3. Create a supervised-learning target and a small set of beginner-friendly
-   numeric features.
-4. Save the resulting table to ``data/processed/features.csv``.
+Data flow for beginners:
+1. Read ``data/interim/matches.csv`` produced by ``src/data/build_dataset.py``.
+2. Convert raw match facts into model inputs such as rank difference and neutral
+   venue flag.
+3. Save ``data/processed/features.csv`` for ``src/models/train_baseline.py``.
 
-Note for future modeling work:
-``goal_difference`` and ``total_goals`` are useful for data analysis, but they
-are calculated from final scores. They should not be used as model inputs for a
-pre-match predictor because that would leak the answer into training.
+Preprocessing note: final scores are used only to create ``target_result`` and
+are deliberately excluded from the saved feature table to reduce leakage.
 """
 
 from __future__ import annotations
@@ -19,150 +16,86 @@ from pathlib import Path
 
 import pandas as pd
 
-
-# Keep repository-relative paths in one place so future pipeline steps can reuse
-# or override them easily.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-INPUT_PATH = PROJECT_ROOT / "data" / "processed" / "matches.csv"
-OUTPUT_PATH = PROJECT_ROOT / "data" / "processed" / "features.csv"
+MATCHES_PATH = PROJECT_ROOT / "data" / "interim" / "matches.csv"
+FEATURES_PATH = PROJECT_ROOT / "data" / "processed" / "features.csv"
 
-REQUIRED_COLUMNS = ["date", "home_team", "away_team", "home_score", "away_score"]
-DIRECT_LEAKAGE_COLUMNS = ["home_score", "away_score", "goal_difference", "total_goals"]
-
-# Common names used by public international-football datasets. The script checks
-# these pairs in order and creates the first available rank difference.
-RANKING_COLUMN_PAIRS = [
-    ("home_rank", "away_rank"),
-    ("home_team_rank", "away_team_rank"),
-    ("home_fifa_rank", "away_fifa_rank"),
-    ("home_ranking", "away_ranking"),
-]
+REQUIRED_COLUMNS = {"date", "home_team", "away_team", "target_result"}
 
 
-def load_matches(input_path: Path = INPUT_PATH) -> pd.DataFrame:
-    """Load processed match rows from disk with a clear error message."""
-    if not input_path.exists():
+def load_matches(path: Path = MATCHES_PATH) -> pd.DataFrame:
+    """Load the interim match table created by the data-building step."""
+    if not path.exists():
         raise FileNotFoundError(
-            f"Input file not found: {input_path}. "
-            "Run the data preparation step first or place matches.csv there."
+            f"Match dataset not found: {path}. Run src/data/build_dataset.py first."
         )
 
-    return pd.read_csv(input_path)
-
-
-def validate_required_columns(matches: pd.DataFrame) -> None:
-    """Ensure the minimum columns needed for feature generation are present."""
-    missing_columns = [column for column in REQUIRED_COLUMNS if column not in matches.columns]
-    if missing_columns:
+    matches = pd.read_csv(path)
+    missing = REQUIRED_COLUMNS - set(matches.columns)
+    if missing:
         raise ValueError(
-            "matches.csv is missing required columns: "
-            f"{', '.join(missing_columns)}. Required columns are: "
-            f"{', '.join(REQUIRED_COLUMNS)}."
+            "Interim match dataset is missing required columns: "
+            + ", ".join(sorted(missing))
         )
+    return matches
 
 
-def create_target_result(row: pd.Series) -> str:
-    """Convert home/away scores into a classification target label."""
-    if row["home_score"] > row["away_score"]:
-        return "home_win"
-    if row["home_score"] < row["away_score"]:
-        return "away_win"
-    return "draw"
+def _safe_numeric(series: pd.Series, default: float = 0.0) -> pd.Series:
+    """Convert a column to numeric values and fill missing values safely."""
+    return pd.to_numeric(series, errors="coerce").fillna(default)
 
 
-def add_rank_difference(features: pd.DataFrame) -> None:
-    """Add ``rank_difference`` when a supported home/away ranking pair exists.
+def make_features(matches: pd.DataFrame) -> pd.DataFrame:
+    """Transform match rows into a model-ready feature table."""
+    features = pd.DataFrame()
+    features["date"] = pd.to_datetime(matches["date"], errors="coerce").dt.strftime(
+        "%Y-%m-%d"
+    )
+    features["home_team"] = matches["home_team"].astype(str).str.strip()
+    features["away_team"] = matches["away_team"].astype(str).str.strip()
 
-    The function mutates ``features`` in place to avoid copying the whole table.
-    A positive value means the home team's rank number is larger than the away
-    team's rank number. In FIFA-style rankings, a larger number often means a
-    lower-ranked team, so model interpretation should account for that.
-    """
-    for home_rank_column, away_rank_column in RANKING_COLUMN_PAIRS:
-        if home_rank_column in features.columns and away_rank_column in features.columns:
-            home_rank = pd.to_numeric(features[home_rank_column], errors="coerce")
-            away_rank = pd.to_numeric(features[away_rank_column], errors="coerce")
-            features["rank_difference"] = home_rank - away_rank
-            return
+    if {"home_rank", "away_rank"}.issubset(matches.columns):
+        home_rank = _safe_numeric(matches["home_rank"])
+        away_rank = _safe_numeric(matches["away_rank"])
+        # Lower FIFA rank is better, so away_rank - home_rank is positive when
+        # the home team is stronger on paper.
+        features["rank_diff"] = away_rank - home_rank
+        features["home_rank"] = home_rank
+        features["away_rank"] = away_rank
+    else:
+        # Keep the pipeline runnable before rankings are added. This feature is
+        # neutral and can be replaced by real ranking data later.
+        features["rank_diff"] = 0.0
 
+    if "neutral" in matches.columns:
+        neutral_text = matches["neutral"].astype(str).str.lower().str.strip()
+        features["is_neutral"] = neutral_text.isin({"true", "1", "yes", "y"}).astype(
+            int
+        )
+    else:
+        features["is_neutral"] = 0
 
-def parse_neutral_value(value: object) -> int:
-    """Convert common neutral-site values into a safe 0/1 flag."""
-    if pd.isna(value):
-        return 0
+    # Simple categorical context features. OneHotEncoder in train_baseline.py
+    # will convert these strings into numeric columns for the models.
+    features["is_korea_home"] = (features["home_team"] == "Korea Republic").astype(int)
+    features["target_result"] = matches["target_result"].astype(str).str.strip()
 
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {"true", "1", "yes", "y"}:
-            return 1
-        if normalized in {"false", "0", "no", "n", ""}:
-            return 0
-
-    return int(bool(value))
-
-
-def add_neutral_feature(features: pd.DataFrame) -> None:
-    """Add a numeric neutral-site flag if neutral-site source data exists."""
-    if "neutral" not in features.columns:
-        return
-
-    # ``astype(bool)`` alone can turn non-empty strings like "False" into True,
-    # so parse each value explicitly before converting to 0/1.
-    features["is_neutral"] = features["neutral"].map(parse_neutral_value).astype(int)
+    features = features.dropna(subset=["date", "target_result"]).reset_index(drop=True)
+    return features
 
 
-def build_features(matches: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
-    """Build the MVP feature table and return model-safe feature column names."""
-    validate_required_columns(matches)
-
-    features = matches.copy()
-
-    # Coerce score columns to numeric values before doing arithmetic. Invalid
-    # values become NaN and are reported clearly instead of producing bad output.
-    for score_column in ["home_score", "away_score"]:
-        features[score_column] = pd.to_numeric(features[score_column], errors="coerce")
-
-    if features[["home_score", "away_score"]].isna().any().any():
-        raise ValueError("home_score and away_score must contain numeric values for every row.")
-
-    features["target_result"] = features.apply(create_target_result, axis=1)
-    features["goal_difference"] = features["home_score"] - features["away_score"]
-    features["total_goals"] = features["home_score"] + features["away_score"]
-
-    add_neutral_feature(features)
-    add_rank_difference(features)
-
-    feature_columns = select_model_feature_columns(features)
-    return features, feature_columns
-
-
-def select_model_feature_columns(features: pd.DataFrame) -> list[str]:
-    """Return numeric feature columns that are safe to use as model inputs.
-
-    Direct result-derived columns are intentionally excluded to reduce target
-    leakage in downstream training. They remain in the saved table for analysis
-    and validation.
-    """
-    excluded_columns = set(REQUIRED_COLUMNS + DIRECT_LEAKAGE_COLUMNS + ["target_result"])
-    numeric_columns = features.select_dtypes(include="number").columns.tolist()
-    return [column for column in numeric_columns if column not in excluded_columns]
-
-
-def save_features(features: pd.DataFrame, output_path: Path = OUTPUT_PATH) -> None:
-    """Persist the feature table, creating the output directory if needed."""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    features.to_csv(output_path, index=False)
+def save_features(features: pd.DataFrame, path: Path = FEATURES_PATH) -> None:
+    """Persist the model-ready feature table."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    features.to_csv(path, index=False)
+    print(f"Saved model-ready features with {len(features)} rows to: {path}")
 
 
 def main() -> None:
-    """Run the feature engineering pipeline as a command-line script."""
+    """CLI entry point for the feature-engineering step."""
     matches = load_matches()
-    features, feature_columns = build_features(matches)
+    features = make_features(matches)
     save_features(features)
-
-    print(f"Output path: {OUTPUT_PATH}")
-    print(f"Row count: {len(features)}")
-    print(f"Feature columns: {', '.join(feature_columns) if feature_columns else '(none)'}")
 
 
 if __name__ == "__main__":

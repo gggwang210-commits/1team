@@ -1,108 +1,156 @@
-"""Build the MVP processed match dataset.
+"""Build the MVP match dataset used by feature engineering.
 
-Data flow for the MVP smoke test:
-1. Create a small deterministic in-memory set of match records.
-2. Validate that at least one row exists before writing anything to disk.
-3. Persist the records to ``data/processed/matches.csv`` for downstream
-   feature engineering and model-training experiments.
+Data flow for beginners:
+1. Prefer real raw CSV files in ``data/raw`` when they use common football
+   results columns such as ``date``, ``home_team``, and ``away_team``.
+2. If raw data is not available yet, create a small but trainable demo dataset.
+3. Save the standardized match table to ``data/interim/matches.csv``.
+
+The demo dataset is intentionally simple, but it is large enough to support a
+stratified train/test split for the baseline classifier.
 """
+
+from __future__ import annotations
 
 from pathlib import Path
 
 import pandas as pd
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+RAW_DIR = PROJECT_ROOT / "data" / "raw"
+INTERIM_DIR = PROJECT_ROOT / "data" / "interim"
+MATCHES_PATH = INTERIM_DIR / "matches.csv"
 
-# Keep the MVP schema explicit so downstream feature engineering can rely on it.
-MATCH_COLUMNS = [
-    "date",
-    "home_team",
-    "away_team",
-    "home_score",
-    "away_score",
-    "home_rank",
-    "away_rank",
-    "neutral",
-]
+REQUIRED_MATCH_COLUMNS = {"date", "home_team", "away_team", "home_score", "away_score"}
+
+# Common alternative names found in public international-football datasets.
+COLUMN_ALIASES = {
+    "home": "home_team",
+    "away": "away_team",
+    "home_goals": "home_score",
+    "away_goals": "away_score",
+    "home_team_score": "home_score",
+    "away_team_score": "away_score",
+    "neutral_site": "neutral",
+}
 
 
-def build_smoke_test_matches() -> pd.DataFrame:
-    """Return a deterministic match dataset for MVP pipeline smoke tests.
-
-    The records are intentionally small and static. They are not intended to
-    train a production model; they only provide enough realistic structure for
-    preprocessing and feature-engineering code to run end-to-end.
-    """
-    records = [
-        {
-            "date": "2024-01-10",
-            "home_team": "Argentina",
-            "away_team": "Brazil",
-            "home_score": 2,
-            "away_score": 1,
-            "home_rank": 1,
-            "away_rank": 5,
-            "neutral": False,
-        },
-        {
-            "date": "2024-01-17",
-            "home_team": "France",
-            "away_team": "Germany",
-            "home_score": 1,
-            "away_score": 1,
-            "home_rank": 2,
-            "away_rank": 16,
-            "neutral": False,
-        },
-        {
-            "date": "2024-01-24",
-            "home_team": "Spain",
-            "away_team": "Italy",
-            "home_score": 3,
-            "away_score": 2,
-            "home_rank": 8,
-            "away_rank": 9,
-            "neutral": True,
-        },
-        {
-            "date": "2024-01-31",
-            "home_team": "England",
-            "away_team": "Netherlands",
-            "home_score": 0,
-            "away_score": 2,
-            "home_rank": 4,
-            "away_rank": 7,
-            "neutral": False,
-        },
-        {
-            "date": "2024-02-07",
-            "home_team": "Portugal",
-            "away_team": "Belgium",
-            "home_score": 2,
-            "away_score": 2,
-            "home_rank": 6,
-            "away_rank": 3,
-            "neutral": True,
-        },
+def _standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize column names so later pipeline steps can be predictable."""
+    standardized = df.copy()
+    standardized.columns = [
+        column.strip().lower().replace(" ", "_") for column in standardized.columns
     ]
+    standardized = standardized.rename(columns=COLUMN_ALIASES)
+    return standardized
 
-    return pd.DataFrame.from_records(records, columns=MATCH_COLUMNS)
+
+def _add_target_result(df: pd.DataFrame) -> pd.DataFrame:
+    """Create a three-class match result label from final scores."""
+    labeled = df.copy()
+    labeled["home_score"] = pd.to_numeric(labeled["home_score"], errors="coerce")
+    labeled["away_score"] = pd.to_numeric(labeled["away_score"], errors="coerce")
+
+    labeled["target_result"] = "DRAW"
+    labeled.loc[labeled["home_score"] > labeled["away_score"], "target_result"] = (
+        "HOME_WIN"
+    )
+    labeled.loc[labeled["home_score"] < labeled["away_score"], "target_result"] = (
+        "AWAY_WIN"
+    )
+    return labeled
+
+
+def _load_first_compatible_raw_csv(raw_dir: Path = RAW_DIR) -> pd.DataFrame | None:
+    """Return the first raw CSV that has enough match-result columns.
+
+    The project may use different Kaggle/public datasets during MVP discovery,
+    so this loader accepts common column variants instead of depending on one
+    exact filename.
+    """
+    if not raw_dir.exists():
+        return None
+
+    for csv_path in sorted(raw_dir.glob("*.csv")):
+        candidate = _standardize_columns(pd.read_csv(csv_path))
+        if REQUIRED_MATCH_COLUMNS.issubset(candidate.columns):
+            print(f"Loaded raw match data from: {csv_path}")
+            return candidate
+    return None
+
+
+def _build_demo_matches() -> pd.DataFrame:
+    """Create a compact fallback dataset for local MVP development.
+
+    The fallback has 15 rows and three classes. With the default 20% test split,
+    this gives three test rows, which is the minimum needed for a stratified
+    three-class split.
+    """
+    rows = [
+        ("2024-01-10", "Korea Republic", "Japan", 2, 1, False, 23, 18),
+        ("2024-01-20", "Korea Republic", "Iran", 1, 1, True, 23, 20),
+        ("2024-02-05", "Korea Republic", "Australia", 0, 1, False, 22, 25),
+        ("2024-02-18", "Japan", "Korea Republic", 1, 2, False, 17, 22),
+        ("2024-03-02", "Iran", "Korea Republic", 0, 0, False, 19, 22),
+        ("2024-03-19", "Australia", "Korea Republic", 3, 1, True, 24, 22),
+        ("2024-04-04", "Korea Republic", "Saudi Arabia", 3, 0, False, 21, 55),
+        ("2024-04-22", "Saudi Arabia", "Korea Republic", 2, 2, False, 54, 21),
+        ("2024-05-11", "Korea Republic", "Qatar", 1, 2, True, 21, 58),
+        ("2024-05-30", "Qatar", "Korea Republic", 0, 1, False, 57, 21),
+        ("2024-06-14", "Korea Republic", "Iraq", 1, 1, False, 20, 63),
+        ("2024-06-29", "Iraq", "Korea Republic", 2, 0, False, 62, 20),
+        ("2024-07-13", "Korea Republic", "Uzbekistan", 2, 0, True, 20, 74),
+        ("2024-07-27", "Uzbekistan", "Korea Republic", 1, 1, False, 73, 20),
+        ("2024-08-09", "Korea Republic", "United States", 0, 2, False, 20, 13),
+    ]
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "date",
+            "home_team",
+            "away_team",
+            "home_score",
+            "away_score",
+            "neutral",
+            "home_rank",
+            "away_rank",
+        ],
+    )
+
+
+def build_dataset() -> pd.DataFrame:
+    """Build and persist the standardized MVP match dataset."""
+    matches = _load_first_compatible_raw_csv()
+    if matches is None:
+        print("No compatible raw CSV found. Using built-in MVP demo data.")
+        matches = _build_demo_matches()
+    matches = _standardize_columns(matches)
+    matches = _add_target_result(matches)
+
+    # Keep only rows that can support supervised training.
+    matches["date"] = pd.to_datetime(matches["date"], errors="coerce")
+    matches = matches.dropna(
+        subset=[
+            "date",
+            "home_team",
+            "away_team",
+            "home_score",
+            "away_score",
+            "target_result",
+        ]
+    )
+    matches = matches.sort_values("date").drop_duplicates().reset_index(drop=True)
+    matches["date"] = matches["date"].dt.strftime("%Y-%m-%d")
+
+    INTERIM_DIR.mkdir(parents=True, exist_ok=True)
+    matches.to_csv(MATCHES_PATH, index=False)
+    print(f"Saved MVP match dataset with {len(matches)} rows to: {MATCHES_PATH}")
+    return matches
 
 
 def main() -> None:
-    """Create ``data/processed/matches.csv`` from the MVP smoke-test data."""
-    project_root = Path(__file__).resolve().parents[2]
-    output_dir = project_root / "data" / "processed"
-    output_path = output_dir / "matches.csv"
-
-    matches = build_smoke_test_matches()
-    if matches.empty:
-        raise ValueError("Generated matches dataset is empty; cannot write matches.csv.")
-
-    # Ensure the processed data directory exists before writing the CSV file.
-    output_dir.mkdir(parents=True, exist_ok=True)
-    matches.to_csv(output_path, index=False)
-
-    print(f"Wrote {output_path} with {len(matches)} rows.")
+    """CLI entry point for the data-building step."""
+    build_dataset()
 
 
 if __name__ == "__main__":
