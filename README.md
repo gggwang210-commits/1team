@@ -224,6 +224,10 @@ The wrapper writes `reports/smoke_test_report.md` as a local generated artifact 
 - failed command, when applicable
 - commands executed
 
+The smoke test gate is intentionally limited to the reproducible MVP pipeline
+commands above. Post-MVP nice-to-have features and UI convenience metadata must
+not be added as mandatory smoke test requirements.
+
 ### Development quick check
 
 During feature development, you may manually run the five individual commands
@@ -253,7 +257,11 @@ Run the MVP pipeline in order:
 - Team-name identifiers such as `home_team` and `away_team` can make demo metrics look better than they really are because a model may memorize team-specific outcomes instead of learning generalizable ranking or match-context signals. After running the pipeline, compare `ranking_context_only` against `with_team_identifiers` in the locally generated `reports/baseline_metrics.csv` before interpreting baseline performance.
 - MVP metrics should not be treated as production-ready claims until they are validated on larger historical datasets with time-aware splits and stronger leakage checks.
 
-## Suggested Improvements
+## Post-MVP Nice-to-have Improvements
+
+These ideas are intentionally separated from MVP acceptance and smoke test
+requirements. Treat them as future enhancements after the current match-level
+Win/Draw/Loss workflow remains reproducible.
 
 - Replace the demo dataset with real historical international match results and FIFA rankings.
 - Add rolling recent-form features, rest-days features, and tournament-context features.
