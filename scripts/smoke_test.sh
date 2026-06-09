@@ -42,11 +42,12 @@ COMMIT_HASH="$(git rev-parse HEAD)"
 STARTED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
 # Keep this command list short and close to the MVP data flow documented in the
-# README: dataset build -> features -> training -> evaluation.
+# README: dataset build -> features -> training -> prediction -> evaluation.
 SMOKE_COMMANDS=(
   "python src/data/build_dataset.py"
   "python src/features/make_features.py"
   "python src/models/train_baseline.py"
+  "python src/models/predict.py"
   "python src/models/evaluate.py"
 )
 
