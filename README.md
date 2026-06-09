@@ -195,9 +195,14 @@ Generated report files are intentionally not committed. Running the pipeline rec
 
 ## CI and Local Smoke Test
 
-Use the same five MVP pipeline commands for two different purposes: the official
-smoke test validates the reproducible `main` branch baseline, while the manual
-quick check helps feature-branch development catch issues before merge.
+The project has one official smoke-test entry point and one manual development
+quick check. Both execute the same five MVP pipeline commands, but they are not
+interchangeable:
+
+- **Official smoke test:** `./scripts/smoke_test.sh` is the required wrapper for
+  CI and reproducible `main` branch validation.
+- **Development quick check:** the five individual Python commands are a
+  feature-branch sanity check for local development only.
 
 ### Official smoke test
 
@@ -213,7 +218,8 @@ git fetch origin main && git checkout main
 The smoke test wrapper intentionally fails before running project commands when a
 local `main` branch is missing or when the current branch is not `main`. This
 policy prevents accidentally validating a feature branch or a detached checkout
-as the MVP baseline.
+as the MVP baseline. Use this wrapper, not the manual commands below, when
+validating the main branch baseline before or after merge.
 
 The wrapper writes `reports/smoke_test_report.md` as a local generated artifact and records:
 
@@ -224,13 +230,27 @@ The wrapper writes `reports/smoke_test_report.md` as a local generated artifact 
 - failed command, when applicable
 - commands executed
 
+If the official smoke test fails, inspect these generated artifacts in order:
+
+1. `reports/smoke_test_report.md` for the branch, commit, status, failed
+   command, and command list captured by the wrapper.
+2. `reports/data_quality_summary.md` for dataset-build output and input-data
+   quality checks.
+3. `data/processed/matches_features.csv` for the engineered feature table used
+   by training and prediction.
+4. `models/baseline_model.joblib` for the trained baseline model artifact.
+5. `reports/baseline_metrics.csv` for training-time model metrics.
+6. `reports/prediction_table.csv` for prediction output required by evaluation.
+7. `reports/model_evaluation.md` for the final evaluation summary.
+
 ### Development quick check
 
 During feature development, you may manually run the five individual commands
 below from your feature branch for a fast local sanity check. This is useful
 before opening a pull request, but it does not replace the official `main`
 branch smoke test above because it skips the wrapper's branch and report
-metadata guardrails.
+metadata guardrails. Treat these commands as a developer convenience only; CI
+and main branch verification should continue to use `./scripts/smoke_test.sh`.
 
 Run the MVP pipeline in order:
 
