@@ -35,7 +35,7 @@ Research & MVP Phase
 
 ## MVP Data Flow
 
-The implemented MVP pipeline now has three explicit stages:
+The implemented MVP pipeline now has five explicit stages:
 
 1. `src/data/build_dataset.py` standardizes international match-result data and writes `data/processed/matches.csv`.
    - If no compatible raw CSV exists in `data/raw/`, it creates a built-in demo dataset.
@@ -136,13 +136,21 @@ The implemented MVP pipeline now has three explicit stages:
    python src/models/train_baseline.py
    ```
 
-7. Evaluate baseline models.
+7. Generate the required prediction table.
+
+   `src/models/predict.py` must run before `src/models/evaluate.py` in the MVP workflow. Evaluation now treats `reports/prediction_table.csv` as a required artifact, so it will fail if predictions are missing or empty.
+
+   ```bash
+   python src/models/predict.py
+   ```
+
+8. Evaluate baseline models.
 
    ```bash
    python src/models/evaluate.py
    ```
 
-8. Launch the Streamlit demo.
+9. Launch the Streamlit demo.
 
    ```bash
    streamlit run app/streamlit_app.py
