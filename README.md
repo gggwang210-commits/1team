@@ -29,6 +29,21 @@ Later phases may expand to Round of 32 qualification probability and full tourna
 
 Research & MVP Phase
 
+## MVP Data Flow
+
+The implemented MVP pipeline now has three explicit stages:
+
+1. `src/data/build_dataset.py` standardizes international match-result data and writes `data/interim/matches.csv`.
+   - If no compatible raw CSV exists in `data/raw/`, it creates a built-in demo dataset.
+   - The demo dataset has 15 labeled rows and three target classes so baseline training can run locally.
+2. `src/features/make_features.py` converts interim match rows into model-ready pre-match features and writes `data/processed/features.csv`.
+   - Final scores are used only to create `target_result`.
+   - Score/result leakage columns are not included as model features.
+3. `src/models/train_baseline.py` validates the feature table before model fitting.
+   - Supported target columns: `target_result` or `target`.
+   - Minimum requirements: at least two target classes, at least one non-empty usable feature column, at least two rows per class, and enough rows for the configured train/test split.
+   - With the default 20% split and three classes, the MVP needs at least 15 labeled rows.
+
 ## Project Structure
 
 ```text
@@ -69,9 +84,7 @@ Research & MVP Phase
 └── .gitignore
 ```
 
-## How to Run the MVP Later
-
-The full modeling logic is not implemented yet. After data preparation and baseline modeling are added, the intended workflow is:
+## How to Run the MVP
 
 1. Create and activate a Python virtual environment.
 
@@ -86,7 +99,7 @@ The full modeling logic is not implemented yet. After data preparation and basel
    pip install -r requirements.txt
    ```
 
-3. Add raw datasets to `data/raw/`.
+3. Add raw datasets to `data/raw/` when available.
 
    Expected MVP data sources:
 
@@ -94,25 +107,33 @@ The full modeling logic is not implemented yet. After data preparation and basel
    - FIFA Rankings
    - FIFA World Cup Data
 
-4. Run the data pipeline.
+   If no compatible raw CSV is present, the MVP uses a small built-in demo dataset for local pipeline testing.
+
+4. Build the interim match dataset.
 
    ```bash
    python src/data/build_dataset.py
    ```
 
-5. Train baseline models.
+5. Create model-ready features.
+
+   ```bash
+   python src/features/make_features.py
+   ```
+
+6. Train baseline models.
 
    ```bash
    python src/models/train_baseline.py
    ```
 
-6. Evaluate baseline models.
+7. Evaluate baseline models.
 
    ```bash
    python src/models/evaluate.py
    ```
 
-7. Launch the Streamlit demo.
+8. Launch the Streamlit demo.
 
    ```bash
    streamlit run app/streamlit_app.py
@@ -124,3 +145,10 @@ The full modeling logic is not implemented yet. After data preparation and basel
 - Baseline Model
 - Prediction Table
 - Streamlit Demo
+
+## Suggested Improvements
+
+- Replace the demo dataset with real historical international match results and FIFA rankings.
+- Add rolling recent-form features, rest-days features, and tournament-context features.
+- Add probability calibration and report Log Loss/Brier Score alongside Accuracy and Macro F1.
+- Add data governance checks before using any sensitive or licensed datasets.

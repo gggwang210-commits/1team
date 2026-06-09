@@ -7,6 +7,7 @@ model and a metrics report.
 
 from __future__ import annotations
 
+from math import ceil
 from pathlib import Path
 from typing import Optional
 
@@ -21,7 +22,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-
 # Project paths are kept in one place so beginners can change them easily.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FEATURES_PATH = PROJECT_ROOT / "data" / "processed" / "features.csv"
@@ -30,6 +30,10 @@ METRICS_PATH = PROJECT_ROOT / "reports" / "baseline_metrics.csv"
 
 # The target may use either name depending on the feature engineering step.
 TARGET_CANDIDATES = ("target_result", "target")
+
+# Default split used throughout this script. Validation uses the same value so
+# users get a clear dataset-size message before scikit-learn is called.
+DEFAULT_TEST_SIZE = 0.2
 
 # If one of these columns exists, we use it to keep older matches in train and
 # newer matches in test. This better matches real prediction usage.
@@ -65,8 +69,7 @@ def find_target_column(df: pd.DataFrame) -> str:
         if column in df.columns:
             return column
     raise ValueError(
-        "Missing target column. Expected one of: "
-        + ", ".join(TARGET_CANDIDATES)
+        "Missing target column. Expected one of: " + ", ".join(TARGET_CANDIDATES)
     )
 
 
@@ -78,38 +81,87 @@ def find_date_column(df: pd.DataFrame) -> Optional[str]:
     return None
 
 
-def validate_input_data(df: pd.DataFrame) -> str:
-    """Check that the dataset has the columns and rows needed for training."""
-    target_column = find_target_column(df)
+def validate_input_data(df: pd.DataFrame, test_size: float = DEFAULT_TEST_SIZE) -> str:
+    """Check that the dataset has the columns, classes, and rows for training.
 
+    This validation intentionally runs before scikit-learn. MVP datasets are
+    often tiny, and clear messages here are much easier to understand than
+    downstream errors from ``train_test_split`` or ``LogisticRegression``.
+    """
     if df.empty:
-        raise ValueError("Feature dataset is empty.")
-
-    if df[target_column].isna().any():
-        raise ValueError(f"Target column '{target_column}' contains missing values.")
-
-    feature_columns = get_feature_columns(df)
-    if not feature_columns:
         raise ValueError(
-            "No usable feature columns found after removing target/date/result columns."
+            "Feature dataset is empty. Expected data/processed/features.csv to "
+            "contain at least one row, a supported target column, and feature columns."
         )
 
-    # Win/Draw/Loss is a multiclass task, so at least two classes are required.
-    if df[target_column].nunique() < 2:
+    target_column = find_target_column(df)
+
+    if df[target_column].isna().any():
         raise ValueError(
-            f"Target column '{target_column}' must contain at least two classes."
+            f"Target column '{target_column}' contains missing values. Remove or "
+            "label those rows before training."
+        )
+
+    feature_columns = get_feature_columns(df)
+    usable_feature_columns = [
+        column for column in feature_columns if not df[column].isna().all()
+    ]
+    if not usable_feature_columns:
+        raise ValueError(
+            "No usable feature columns found after excluding leakage columns "
+            f"({', '.join(sorted(EXCLUDED_FEATURE_COLUMNS))}). Add at least one "
+            "non-empty pre-match feature such as rank_diff, is_neutral, or team context."
+        )
+
+    class_counts = df[target_column].value_counts(dropna=False)
+    class_count = len(class_counts)
+    if class_count < 2:
+        raise ValueError(
+            f"Target column '{target_column}' must contain at least two classes "
+            "before a classifier can be trained. Current class counts: "
+            f"{class_counts.to_dict()}. For Win/Draw/Loss modeling, include examples "
+            "from at least two outcomes, ideally HOME_WIN, DRAW, and AWAY_WIN."
+        )
+
+    if class_counts.min() < 2:
+        raise ValueError(
+            "Not enough examples per target class for a reliable train/test split. "
+            f"Each class needs at least 2 rows; current counts are {class_counts.to_dict()}. "
+            "If this MVP dataset is intentionally tiny, add more labeled rows before "
+            "running baseline training so every class can appear in both train and test."
+        )
+
+    minimum_rows = minimum_rows_for_split(class_count, test_size)
+    if len(df) < minimum_rows:
+        raise ValueError(
+            "Not enough rows for the baseline train/test split. "
+            f"With {class_count} target classes and test_size={test_size}, the dataset "
+            f"needs at least {minimum_rows} rows so train and test can each contain all "
+            f"classes. Current rows: {len(df)}. Current class counts: {class_counts.to_dict()}. "
+            "For the default MVP Win/Draw/Loss setup, use at least 15 labeled matches "
+            "with at least 2 examples per class."
         )
 
     return target_column
 
 
+def minimum_rows_for_split(class_count: int, test_size: float) -> int:
+    """Return rows needed so train and test can each include every class."""
+    if not 0 < test_size < 1:
+        raise ValueError("test_size must be a float between 0 and 1.")
+
+    rows = class_count
+    while (
+        ceil(rows * test_size) < class_count
+        or rows - ceil(rows * test_size) < class_count
+    ):
+        rows += 1
+    return rows
+
+
 def get_feature_columns(df: pd.DataFrame) -> list[str]:
     """Choose model input columns while excluding targets, dates, and leakage."""
-    return [
-        column
-        for column in df.columns
-        if column not in EXCLUDED_FEATURE_COLUMNS
-    ]
+    return [column for column in df.columns if column not in EXCLUDED_FEATURE_COLUMNS]
 
 
 def make_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
@@ -148,7 +200,7 @@ def make_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
 def split_train_test(
     df: pd.DataFrame,
     target_column: str,
-    test_size: float = 0.2,
+    test_size: float = DEFAULT_TEST_SIZE,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, str]:
     """Create a train/test split, preferring chronological split when possible."""
     feature_columns = get_feature_columns(df)
@@ -172,7 +224,9 @@ def split_train_test(
     else:
         # Without dates, use a reproducible random split. Stratify keeps class
         # proportions similar when each class has enough samples.
-        stratify = df[target_column] if df[target_column].value_counts().min() >= 2 else None
+        stratify = (
+            df[target_column] if df[target_column].value_counts().min() >= 2 else None
+        )
         train_df, test_df = train_test_split(
             df,
             test_size=test_size,
@@ -185,7 +239,29 @@ def split_train_test(
     X_test = test_df[feature_columns]
     y_train = train_df[target_column]
     y_test = test_df[target_column]
+    validate_split_data(y_train, y_test, split_method)
     return X_train, X_test, y_train, y_test, split_method
+
+
+def validate_split_data(
+    y_train: pd.Series,
+    y_test: pd.Series,
+    split_method: str,
+) -> None:
+    """Confirm the split is trainable before fitting scikit-learn models."""
+    if y_train.empty or y_test.empty:
+        raise ValueError(
+            f"The {split_method} split produced an empty train or test set. "
+            "Add more rows to data/processed/features.csv before training."
+        )
+
+    if y_train.nunique() < 2:
+        raise ValueError(
+            f"The {split_method} split left the training set with fewer than two "
+            f"target classes: {y_train.value_counts().to_dict()}. LogisticRegression "
+            "requires at least two classes in training data. Add more labeled rows "
+            "or adjust the date distribution so multiple outcomes appear in train."
+        )
 
 
 def build_models(X_train: pd.DataFrame) -> dict[str, Pipeline]:
