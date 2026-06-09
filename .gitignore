@@ -22,6 +22,12 @@ env/
 *.pkl
 *.joblib
 
+# Generated reports: recreate by running the MVP pipeline.
+reports/baseline_metrics.csv
+reports/prediction_table.csv
+reports/model_evaluation.md
+reports/smoke_test_report.md
+
 # Keep placeholder files
 !data/**/.gitkeep
 !reports/.gitkeep
