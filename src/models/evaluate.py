@@ -24,6 +24,7 @@ EVALUATION_REPORT_PATH = REPORTS_DIR / "model_evaluation.md"
 REQUIRED_METRIC_COLUMNS = ("accuracy", "macro_f1")
 OPTIONAL_SPLIT_COLUMN = "split_method"
 OPTIONAL_MODEL_COLUMN = "model"
+OPTIONAL_FEATURE_SET_COLUMN = "feature_set"
 
 
 def read_required_csv(path: Path, description: str) -> pd.DataFrame:
@@ -129,7 +130,11 @@ def build_metrics_table(metrics_df: pd.DataFrame) -> str:
     """Build a compact markdown table with model, Accuracy, and Macro F1."""
     display_columns = [
         column
-        for column in (OPTIONAL_MODEL_COLUMN, *REQUIRED_METRIC_COLUMNS)
+        for column in (
+            OPTIONAL_MODEL_COLUMN,
+            OPTIONAL_FEATURE_SET_COLUMN,
+            *REQUIRED_METRIC_COLUMNS,
+        )
         if column in metrics_df.columns
     ]
     display_df = metrics_df[display_columns].copy()
@@ -175,7 +180,12 @@ def build_markdown_report(
     best_row = get_best_metric_row(metrics_df)
 
     model_label = best_row.get(OPTIONAL_MODEL_COLUMN, "Best baseline row")
+    feature_set = best_row.get(OPTIONAL_FEATURE_SET_COLUMN)
     split_method = best_row.get(OPTIONAL_SPLIT_COLUMN)
+
+    feature_set_line = ""
+    if pd.notna(feature_set):
+        feature_set_line = f"- Feature set: `{feature_set}`\n"
 
     split_section = ""
     if pd.notna(split_method):
@@ -187,6 +197,7 @@ def build_markdown_report(
         "`reports/baseline_metrics.csv`.\n\n"
         "## Best Baseline Metrics\n\n"
         f"- Model: `{model_label}`\n"
+        f"{feature_set_line}"
         f"- Accuracy: **{format_metric(best_row['accuracy'])}**\n"
         f"- Macro F1: **{format_metric(best_row['macro_f1'])}**\n"
         f"{split_section}\n"
@@ -196,7 +207,9 @@ def build_markdown_report(
         "## Limitations\n\n"
         "These MVP metrics are preliminary and depend on dataset quality, "
         "feature coverage, labeling consistency, and the representativeness of "
-        "the train/test split. They should not be treated as production-ready "
+        "the train/test split. The `with_team_identifiers` feature set can "
+        "overstate performance on tiny demo data because team-name columns may "
+        "encourage memorization. Metrics should not be treated as production-ready "
         "performance claims or as a substitute for deeper validation and data "
         "governance review.\n"
     )

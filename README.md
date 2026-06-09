@@ -51,7 +51,7 @@ The implemented MVP pipeline now has five explicit stages:
    - Supported target column: `target_result`, defined as Korea Republic-perspective Win/Draw/Loss.
    - Minimum requirements: at least two target classes, at least one non-empty usable feature column, at least two rows per class, and enough rows for the configured train/test split.
    - With the default 20% split and three classes, the MVP needs at least 15 labeled rows.
-4. `src/models/predict.py` writes Korea-perspective prediction columns such as `predicted_result_korea_perspective`, `probability_korea_Win`, `probability_korea_Draw`, and `probability_korea_Loss`.
+   - Baseline metrics are recorded for two explicit feature sets: `ranking_context_only` excludes `home_team` and `away_team`, while `with_team_identifiers` keeps those team-name identifiers for comparison.
 
 ## Project Structure
 
@@ -162,6 +162,12 @@ The implemented MVP pipeline now has five explicit stages:
 - Baseline Model
 - Prediction Table
 - Streamlit Demo
+
+## MVP Limitations
+
+- The built-in demo dataset is intentionally small and is only meant to prove that the local pipeline runs end to end.
+- Team-name identifiers such as `home_team` and `away_team` can make demo metrics look better than they really are because a model may memorize team-specific outcomes instead of learning generalizable ranking or match-context signals. Compare `ranking_context_only` against `with_team_identifiers` in `reports/baseline_metrics.csv` before interpreting baseline performance.
+- MVP metrics should not be treated as production-ready claims until they are validated on larger historical datasets with time-aware splits and stronger leakage checks.
 
 ## Suggested Improvements
 
