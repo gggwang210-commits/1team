@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from pandas.errors import EmptyDataError
 
 # Keeping project paths centralized makes the data flow easier to follow:
 # training -> baseline_metrics.csv -> markdown evaluation summary.
@@ -45,10 +46,45 @@ def read_optional_csv(path: Path) -> pd.DataFrame | None:
     if not path.exists():
         return None
 
-    df = pd.read_csv(path)
+    try:
+        df = pd.read_csv(path)
+    except EmptyDataError as exc:
+        raise ValueError(
+            f"Optional prediction table exists but is empty: {path}."
+        ) from exc
+
     if df.empty:
         raise ValueError(f"Optional prediction table exists but is empty: {path}.")
     return df
+
+
+def read_prediction_table(path: Path, required: bool) -> pd.DataFrame | None:
+    """Read prediction output as either a required or optional evaluation input.
+
+    MVP and smoke-test evaluation should fail fast when the prediction artifact is
+    missing, because ``predict.py`` is the pipeline step that proves inference can
+    run with the trained model. Exploratory local checks can still opt out by
+    passing ``required=False``.
+    """
+    if not required:
+        return read_optional_csv(path)
+
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Required prediction table file is missing: {path}. "
+            "Run src/models/predict.py before model evaluation."
+        )
+
+    try:
+        prediction_df = pd.read_csv(path)
+    except EmptyDataError as exc:
+        raise ValueError(
+            f"Required prediction table file is empty: {path}."
+        ) from exc
+
+    if prediction_df.empty:
+        raise ValueError(f"Required prediction table file is empty: {path}.")
+    return prediction_df
 
 
 def validate_metrics(metrics_df: pd.DataFrame) -> None:
@@ -183,12 +219,21 @@ def write_evaluation_report(
     metrics_path: Path = BASELINE_METRICS_PATH,
     prediction_table_path: Path = PREDICTION_TABLE_PATH,
     output_path: Path = EVALUATION_REPORT_PATH,
+    require_prediction_table: bool = True,
 ) -> Path:
-    """Read evaluation inputs and write ``model_evaluation.md``."""
+    """Read evaluation inputs and write ``model_evaluation.md``.
+
+    ``require_prediction_table`` defaults to ``True`` so MVP/smoke evaluation
+    catches a skipped inference step instead of silently producing a partial
+    report. Set it to ``False`` only for exploratory checks that intentionally do
+    not validate prediction artifacts.
+    """
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     metrics_df = read_required_csv(metrics_path, "baseline metrics")
-    prediction_df = read_optional_csv(prediction_table_path)
+    prediction_df = read_prediction_table(
+        prediction_table_path, required=require_prediction_table
+    )
     markdown = build_markdown_report(metrics_df, prediction_df)
 
     output_path.write_text(markdown, encoding="utf-8")

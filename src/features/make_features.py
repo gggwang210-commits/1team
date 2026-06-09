@@ -6,8 +6,8 @@ Data flow for beginners:
    venue flag.
 3. Save ``data/processed/features.csv`` for ``src/models/train_baseline.py``.
 
-Preprocessing note: final scores are used only to create ``target_result`` and
-are deliberately excluded from the saved feature table to reduce leakage.
+Preprocessing note: final scores are used only to create result labels and are
+deliberately excluded from the saved feature table to reduce leakage.
 """
 
 from __future__ import annotations
@@ -20,7 +20,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MATCHES_PATH = PROJECT_ROOT / "data" / "processed" / "matches.csv"
 FEATURES_PATH = PROJECT_ROOT / "data" / "processed" / "features.csv"
 
-REQUIRED_COLUMNS = {"date", "home_team", "away_team", "target_result"}
+TARGET_COLUMN = "target_result_korea_perspective"
+REQUIRED_COLUMNS = {"date", "home_team", "away_team", TARGET_COLUMN}
 
 
 def load_matches(path: Path = MATCHES_PATH) -> pd.DataFrame:
@@ -46,7 +47,12 @@ def _safe_numeric(series: pd.Series, default: float = 0.0) -> pd.Series:
 
 
 def make_features(matches: pd.DataFrame) -> pd.DataFrame:
-    """Transform match rows into a model-ready feature table."""
+    """Transform match rows into a model-ready feature table.
+
+    The model target is selected explicitly here instead of relying on whichever
+    result-like column appears first. For the MVP, Win/Draw/Loss always means
+    Korea Republic's perspective.
+    """
     features = pd.DataFrame()
     features["date"] = pd.to_datetime(matches["date"], errors="coerce").dt.strftime(
         "%Y-%m-%d"
@@ -78,7 +84,9 @@ def make_features(matches: pd.DataFrame) -> pd.DataFrame:
     # Simple categorical context features. OneHotEncoder in train_baseline.py
     # will convert these strings into numeric columns for the models.
     features["is_korea_home"] = (features["home_team"] == "Korea Republic").astype(int)
-    features["target_result"] = matches["target_result"].astype(str).str.strip()
+    # Keep the training target name stable for the modeling layer while sourcing
+    # it from the Korea-perspective label created in build_dataset.py.
+    features["target_result"] = matches[TARGET_COLUMN].astype(str).str.strip()
 
     features = features.dropna(subset=["date", "target_result"]).reset_index(drop=True)
     return features
