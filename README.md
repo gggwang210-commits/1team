@@ -2,11 +2,19 @@
 
 ## Team Project
 
-Machine Learning based prediction system for:
+Machine Learning based prediction system for Korea Republic outcomes.
 
-- Korea Republic group stage matches
+Current MVP:
+
+- Korea Republic match-level Win/Draw/Loss probabilities
+
+Extension Goals:
+
 - Round of 32 qualification probability
 - World Cup tournament simulation
+- Champion probability
+
+This repository currently focuses on match-level outcomes first, not champion classification.
 
 ## MVP Scope
 
