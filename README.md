@@ -37,6 +37,8 @@ Research & MVP Phase
 
 The implemented MVP pipeline now has five explicit stages:
 
+Generated report files are intentionally not committed. Running the pipeline recreates `reports/baseline_metrics.csv`, `reports/prediction_table.csv`, `reports/model_evaluation.md`, and `reports/smoke_test_report.md` from the current code, data, and model artifacts. Treat those files as local evidence for the current run rather than authoritative checked-in model results.
+
 1. `src/data/build_dataset.py` standardizes international match-result data and writes `data/processed/matches.csv`.
    - If no compatible raw CSV exists in `data/raw/`, it creates a built-in demo dataset.
    - The demo dataset has 15 labeled rows and three target classes so baseline training can run locally.
@@ -72,7 +74,7 @@ The implemented MVP pipeline now has five explicit stages:
 │   ├── 01_data_quality_check.ipynb   # Data quality exploration notebook
 │   ├── 02_feature_engineering.ipynb  # Feature engineering exploration notebook
 │   └── 03_baseline_modeling.ipynb    # Baseline modeling exploration notebook
-├── reports/                          # Data quality, evaluation, and prediction reports
+├── reports/                          # Runtime-generated reports; only .gitkeep is tracked
 │   └── .gitkeep
 ├── scripts/
 │   └── smoke_test.sh                 # Main-branch smoke test wrapper
@@ -138,9 +140,11 @@ The implemented MVP pipeline now has five explicit stages:
    python src/models/train_baseline.py
    ```
 
+   This step generates `reports/baseline_metrics.csv` locally. The file is ignored by Git because it is a reproducible pipeline artifact, not an authoritative checked-in model result.
+
 7. Generate the required prediction table.
 
-   `src/models/predict.py` must run before `src/models/evaluate.py` in the MVP workflow. Evaluation now treats `reports/prediction_table.csv` as a required artifact, so it will fail if predictions are missing or empty.
+   `src/models/predict.py` must run before `src/models/evaluate.py` in the MVP workflow. Evaluation treats `reports/prediction_table.csv` as a required local artifact, so it will fail if predictions are missing or empty. The generated prediction table is ignored by Git and should be recreated from the current code, data, and model artifacts.
 
    ```bash
    python src/models/predict.py
@@ -151,6 +155,8 @@ The implemented MVP pipeline now has five explicit stages:
    ```bash
    python src/models/evaluate.py
    ```
+
+   This step generates `reports/model_evaluation.md` locally from the current metrics and prediction-table artifacts.
 
 9. Launch the Streamlit demo.
 
@@ -172,7 +178,7 @@ The smoke test wrapper intentionally fails before running project commands when 
 local `main` branch is missing. This prevents accidentally validating a feature
 branch or a detached checkout as the MVP baseline.
 
-The wrapper writes `reports/smoke_test_report.md` and records:
+The wrapper writes `reports/smoke_test_report.md` as a local generated artifact and records:
 
 - execution branch
 - commit hash
@@ -199,7 +205,7 @@ The wrapper executes the MVP pipeline in order:
 ## MVP Limitations
 
 - The built-in demo dataset is intentionally small and is only meant to prove that the local pipeline runs end to end.
-- Team-name identifiers such as `home_team` and `away_team` can make demo metrics look better than they really are because a model may memorize team-specific outcomes instead of learning generalizable ranking or match-context signals. Compare `ranking_context_only` against `with_team_identifiers` in `reports/baseline_metrics.csv` before interpreting baseline performance.
+- Team-name identifiers such as `home_team` and `away_team` can make demo metrics look better than they really are because a model may memorize team-specific outcomes instead of learning generalizable ranking or match-context signals. After running the pipeline, compare `ranking_context_only` against `with_team_identifiers` in the locally generated `reports/baseline_metrics.csv` before interpreting baseline performance.
 - MVP metrics should not be treated as production-ready claims until they are validated on larger historical datasets with time-aware splits and stronger leakage checks.
 
 ## Suggested Improvements
