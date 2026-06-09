@@ -195,6 +195,25 @@ Generated report files are intentionally not committed. Running the pipeline rec
 
 ## CI and Local Smoke Test
 
+### Generated artifact policy
+
+Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, or the manual MVP
+pipeline commands can refresh local generated artifacts. These files are
+reproducible outputs from the current code, data, and model run, so they are
+generally not committed:
+
+- `data/processed/matches.csv`
+- `data/processed/features.csv`
+- `models/baseline_model.pkl`
+- `reports/baseline_metrics.csv`
+- `reports/prediction_table.csv`
+- `reports/model_evaluation.md`
+
+The `.gitkeep` files are placeholders that keep otherwise-empty directories in
+Git. By default, pull requests should include only source code, scripts, and
+README/documentation changes unless a reviewer explicitly asks for generated
+artifacts.
+
 The project has one official smoke-test entry point and one manual development
 quick check. Both execute the same five MVP pipeline commands, but they are not
 interchangeable:
