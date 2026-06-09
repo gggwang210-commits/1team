@@ -183,8 +183,15 @@ Generated report files are intentionally not committed. Running the pipeline rec
 
 ## CI and Local Smoke Test
 
-Run smoke tests from the `main` branch so CI and local results are reproducible.
-Fetch and check out `main` immediately before the smoke test, then run the wrapper:
+Use the same five MVP pipeline commands for two different purposes: the official
+smoke test validates the reproducible `main` branch baseline, while the manual
+quick check helps feature-branch development catch issues before merge.
+
+### Official smoke test
+
+Run the official smoke test from the `main` branch so CI and local baseline
+results are reproducible. Fetch and check out `main` immediately before the
+smoke test, then run the wrapper:
 
 ```bash
 git fetch origin main && git checkout main
@@ -192,8 +199,9 @@ git fetch origin main && git checkout main
 ```
 
 The smoke test wrapper intentionally fails before running project commands when a
-local `main` branch is missing. This prevents accidentally validating a feature
-branch or a detached checkout as the MVP baseline.
+local `main` branch is missing or when the current branch is not `main`. This
+policy prevents accidentally validating a feature branch or a detached checkout
+as the MVP baseline.
 
 The wrapper writes `reports/smoke_test_report.md` as a local generated artifact and records:
 
@@ -204,7 +212,15 @@ The wrapper writes `reports/smoke_test_report.md` as a local generated artifact 
 - failed command, when applicable
 - commands executed
 
-The wrapper executes the MVP pipeline in order:
+### Development quick check
+
+During feature development, you may manually run the five individual commands
+below from your feature branch for a fast local sanity check. This is useful
+before opening a pull request, but it does not replace the official `main`
+branch smoke test above because it skips the wrapper's branch and report
+metadata guardrails.
+
+Run the MVP pipeline in order:
 
 1. `python src/data/build_dataset.py`
 2. `python src/features/make_features.py`
