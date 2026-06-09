@@ -230,18 +230,9 @@ The wrapper writes `reports/smoke_test_report.md` as a local generated artifact 
 - failed command, when applicable
 - commands executed
 
-If the official smoke test fails, inspect these generated artifacts in order:
-
-1. `reports/smoke_test_report.md` for the branch, commit, status, failed
-   command, and command list captured by the wrapper.
-2. `reports/data_quality_summary.md` for dataset-build output and input-data
-   quality checks.
-3. `data/processed/matches_features.csv` for the engineered feature table used
-   by training and prediction.
-4. `models/baseline_model.joblib` for the trained baseline model artifact.
-5. `reports/baseline_metrics.csv` for training-time model metrics.
-6. `reports/prediction_table.csv` for prediction output required by evaluation.
-7. `reports/model_evaluation.md` for the final evaluation summary.
+The smoke test gate is intentionally limited to the reproducible MVP pipeline
+commands above. Post-MVP nice-to-have features and UI convenience metadata must
+not be added as mandatory smoke test requirements.
 
 ### Development quick check
 
@@ -273,7 +264,11 @@ Run the MVP pipeline in order:
 - Team-name identifiers such as `home_team` and `away_team` can make demo metrics look better than they really are because a model may memorize team-specific outcomes instead of learning generalizable ranking or match-context signals. After running the pipeline, compare `ranking_context_only` against `with_team_identifiers` in the locally generated `reports/baseline_metrics.csv` before interpreting baseline performance.
 - MVP metrics should not be treated as production-ready claims until they are validated on larger historical datasets with time-aware splits and stronger leakage checks.
 
-## Suggested Improvements
+## Post-MVP Nice-to-have Improvements
+
+These ideas are intentionally separated from MVP acceptance and smoke test
+requirements. Treat them as future enhancements after the current match-level
+Win/Draw/Loss workflow remains reproducible.
 
 - Replace the demo dataset with real historical international match results and FIFA rankings.
 - Add rolling recent-form features, rest-days features, and tournament-context features.

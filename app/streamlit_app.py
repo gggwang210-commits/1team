@@ -1,5 +1,6 @@
 """Minimal Streamlit UI for the Korea Republic prediction MVP."""
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -16,6 +17,32 @@ PIPELINE_COMMANDS = [
     "python src/models/predict.py",
     "python src/models/evaluate.py",
 ]
+
+
+def format_last_generated_at(path: Path) -> str | None:
+    """Return a readable UTC timestamp for a generated artifact.
+
+    The pipeline writes report artifacts locally, so the file modification time is
+    the simplest source of truth for when the visible output was last refreshed.
+    ``None`` keeps the UI quiet when a file disappears between the existence
+    check and the metadata read.
+    """
+    try:
+        modified_at = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+    except OSError:
+        return None
+
+    return modified_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
+def show_last_generated_at(path: Path) -> None:
+    """Display report artifact freshness next to the related UI section."""
+    last_generated_at = format_last_generated_at(path)
+    if last_generated_at is None:
+        st.caption("Last generated at: unavailable")
+        return
+
+    st.caption(f"Last generated at: {last_generated_at}")
 
 
 def show_pipeline_instructions() -> None:
@@ -40,6 +67,7 @@ def render_prediction_table() -> bool:
         return False
 
     st.subheader("Prediction Table")
+    show_last_generated_at(PREDICTION_TABLE_PATH)
 
     try:
         prediction_table = pd.read_csv(PREDICTION_TABLE_PATH)
@@ -57,6 +85,7 @@ def render_model_evaluation() -> bool:
         return False
 
     st.subheader("Model Evaluation")
+    show_last_generated_at(MODEL_EVALUATION_PATH)
 
     try:
         evaluation_markdown = MODEL_EVALUATION_PATH.read_text(encoding="utf-8")
