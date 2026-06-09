@@ -1,4 +1,4 @@
-"""Generate prediction tables for Korea Republic match outcomes.
+"""Generate prediction tables for Korea Republic-perspective match outcomes.
 
 This script is the inference counterpart to ``train_baseline.py``. It loads the
 saved baseline model, applies the same non-leakage feature column selection used
@@ -78,7 +78,7 @@ def build_prediction_table(df: pd.DataFrame, model: Any) -> pd.DataFrame:
         [column for column in REPORT_METADATA_COLUMNS if column in df.columns]
     ].copy()
 
-    prediction_table["predicted_result"] = model.predict(X)
+    prediction_table["predicted_result_korea_perspective"] = model.predict(X)
 
     # Not every scikit-learn estimator supports probabilities. When available,
     # scikit-learn returns probability columns in the same order as model.classes_.
@@ -127,7 +127,7 @@ def build_prediction_table(df: pd.DataFrame, model: Any) -> pd.DataFrame:
         }
         for class_label in EXPECTED_PROBABILITY_CLASSES:
             probability_index = class_to_probability_index[class_label]
-            prediction_table[f"probability_{class_label}"] = probabilities[
+            prediction_table[f"probability_korea_{class_label}"] = probabilities[
                 :, probability_index
             ]
 

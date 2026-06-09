@@ -10,9 +10,12 @@ Predict Korea Republic group-stage match outcomes.
 
 Outputs:
 
-- Win Probability
-- Draw Probability
-- Loss Probability
+- Korea Republic Win Probability
+- Korea Republic Draw Probability
+- Korea Republic Loss Probability
+
+Target definition: `Win`, `Draw`, and `Loss` are always from Korea Republic's
+perspective, regardless of whether Korea Republic is home or away.
 
 ## Data Sources
 

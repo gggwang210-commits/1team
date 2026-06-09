@@ -22,6 +22,8 @@ PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 MATCHES_PATH = PROCESSED_DIR / "matches.csv"
 
 REQUIRED_MATCH_COLUMNS = {"date", "home_team", "away_team", "home_score", "away_score"}
+KOREA_TEAM_NAME = "Korea Republic"
+KOREA_TARGET_COLUMN = "target_result_korea_perspective"
 
 # Common alternative names found in public international-football datasets.
 COLUMN_ALIASES = {
@@ -46,7 +48,12 @@ def _standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _add_target_result(df: pd.DataFrame) -> pd.DataFrame:
-    """Create a three-class match result label from final scores."""
+    """Create three-class match result labels from final scores.
+
+    ``target_result`` intentionally remains the traditional home-team
+    perspective label. The MVP model, however, predicts Korea Republic's result,
+    so this function also creates ``target_result_korea_perspective``.
+    """
     labeled = df.copy()
     labeled["home_score"] = pd.to_numeric(labeled["home_score"], errors="coerce")
     labeled["away_score"] = pd.to_numeric(labeled["away_score"], errors="coerce")
@@ -60,7 +67,59 @@ def _add_target_result(df: pd.DataFrame) -> pd.DataFrame:
     home_losses = labeled["home_score"] < labeled["away_score"]
     labeled.loc[home_wins, "target_result"] = "Win"
     labeled.loc[home_losses, "target_result"] = "Loss"
+
+    home_team = labeled["home_team"].astype(str).str.strip()
+    away_team = labeled["away_team"].astype(str).str.strip()
+    korea_home = home_team == KOREA_TEAM_NAME
+    korea_away = away_team == KOREA_TEAM_NAME
+    korea_match = korea_home | korea_away
+
+    # Fail fast if this MVP pipeline receives non-Korea matches. Without this
+    # guard, a missing Korea perspective label could silently train the model on
+    # the wrong business target.
+    if (~korea_match).any():
+        invalid_rows = labeled.loc[~korea_match, ["date", "home_team", "away_team"]]
+        raise ValueError(
+            "Korea perspective target requires every row to include "
+            f"{KOREA_TEAM_NAME!r} as home_team or away_team. Invalid rows: "
+            f"{invalid_rows.to_dict(orient='records')}"
+        )
+
+    # Korea's label is identical to the home perspective when Korea is home.
+    # When Korea is away, home Win/Loss must be reversed; Draw stays Draw.
+    reverse_home_result = {"Win": "Loss", "Loss": "Win", "Draw": "Draw"}
+    labeled[KOREA_TARGET_COLUMN] = labeled["target_result"]
+    labeled.loc[korea_away, KOREA_TARGET_COLUMN] = labeled.loc[
+        korea_away, "target_result"
+    ].map(reverse_home_result)
+
+    if labeled[KOREA_TARGET_COLUMN].isna().any():
+        raise ValueError(
+            f"Failed to create {KOREA_TARGET_COLUMN}; check score and team values."
+        )
     return labeled
+
+
+def _filter_to_korea_matches(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep only rows where Korea Republic is either home or away.
+
+    Public international-results files often contain every national team. The
+    MVP business question is Korea Republic outcomes, so filtering here keeps
+    downstream labels and model metrics aligned to that scope.
+    """
+    home_team = df["home_team"].astype(str).str.strip()
+    away_team = df["away_team"].astype(str).str.strip()
+    korea_matches = df.loc[
+        (home_team == KOREA_TEAM_NAME) | (away_team == KOREA_TEAM_NAME)
+    ].copy()
+
+    if korea_matches.empty:
+        raise ValueError(
+            f"No {KOREA_TEAM_NAME!r} matches found. The MVP dataset must include "
+            "Korea Republic as home_team or away_team in at least one row."
+        )
+
+    return korea_matches
 
 
 def _load_first_compatible_raw_csv(raw_dir: Path = RAW_DIR) -> pd.DataFrame | None:
@@ -127,6 +186,7 @@ def build_dataset() -> pd.DataFrame:
         print("No compatible raw CSV found. Using built-in MVP demo data.")
         matches = _build_demo_matches()
     matches = _standardize_columns(matches)
+    matches = _filter_to_korea_matches(matches)
     matches = _add_target_result(matches)
 
     # Keep only rows that can support supervised training.
@@ -139,6 +199,7 @@ def build_dataset() -> pd.DataFrame:
             "home_score",
             "away_score",
             "target_result",
+            KOREA_TARGET_COLUMN,
         ]
     )
     matches = matches.sort_values("date").drop_duplicates().reset_index(drop=True)
