@@ -43,7 +43,7 @@ DEFAULT_TEST_SIZE = 0.2
 # newer matches in test. This better matches real prediction usage.
 DATE_CANDIDATES = ("date", "match_date", "game_date")
 
-# Columns with these names are identifiers or known result-like fields, so they
+# Columns with these names are known result-like fields, targets, or dates, so they
 # should not be used as model inputs. Keeping them out reduces leakage risk.
 EXCLUDED_FEATURE_COLUMNS = {
     "target_result",
@@ -56,6 +56,18 @@ EXCLUDED_FEATURE_COLUMNS = {
     "home_score",
     "away_score",
 }
+
+# Team names are not direct match results, but they are high-cardinality team
+# identifiers. On a tiny demo dataset, a model can memorize team-outcome patterns
+# instead of learning generalizable ranking/context relationships. We therefore
+# evaluate two explicit baseline variants so readers can compare both choices.
+TEAM_IDENTIFIER_COLUMNS = {"home_team", "away_team"}
+FEATURE_SET_RANKING_CONTEXT_ONLY = "ranking_context_only"
+FEATURE_SET_WITH_TEAM_IDENTIFIERS = "with_team_identifiers"
+FEATURE_SET_NAMES = (
+    FEATURE_SET_RANKING_CONTEXT_ONLY,
+    FEATURE_SET_WITH_TEAM_IDENTIFIERS,
+)
 
 
 def load_features(path: Path = FEATURES_PATH) -> pd.DataFrame:
@@ -119,15 +131,22 @@ def validate_input_data(df: pd.DataFrame, test_size: float = DEFAULT_TEST_SIZE) 
             f"Unexpected labels: {sorted(unexpected_target_classes)}."
         )
 
-    feature_columns = get_feature_columns(df)
-    usable_feature_columns = [
-        column for column in feature_columns if not df[column].isna().all()
-    ]
-    if not usable_feature_columns:
+    feature_sets_with_usable_columns = []
+    for feature_set in FEATURE_SET_NAMES:
+        feature_columns = get_feature_columns(df, feature_set=feature_set)
+        usable_feature_columns = [
+            column for column in feature_columns if not df[column].isna().all()
+        ]
+        if usable_feature_columns:
+            feature_sets_with_usable_columns.append(feature_set)
+
+    if not feature_sets_with_usable_columns:
+        excluded_columns = EXCLUDED_FEATURE_COLUMNS | TEAM_IDENTIFIER_COLUMNS
         raise ValueError(
-            "No usable feature columns found after excluding leakage columns "
-            f"({', '.join(sorted(EXCLUDED_FEATURE_COLUMNS))}). Add at least one "
-            "non-empty pre-match feature such as rank_diff, is_neutral, or team context."
+            "No usable feature columns found for any baseline feature set after "
+            "excluding leakage columns "
+            f"({', '.join(sorted(excluded_columns))}). Add at least one non-empty "
+            "pre-match feature such as rank_diff, is_neutral, or is_korea_home."
         )
 
     class_counts = df[target_column].value_counts(dropna=False)
@@ -176,9 +195,29 @@ def minimum_rows_for_split(class_count: int, test_size: float) -> int:
     return rows
 
 
-def get_feature_columns(df: pd.DataFrame) -> list[str]:
-    """Choose model input columns while excluding targets, dates, and leakage."""
-    return [column for column in df.columns if column not in EXCLUDED_FEATURE_COLUMNS]
+def get_feature_columns(
+    df: pd.DataFrame,
+    feature_set: str = FEATURE_SET_WITH_TEAM_IDENTIFIERS,
+) -> list[str]:
+    """Choose model input columns for an explicit baseline feature set.
+
+    Data flow note for beginners:
+    - Every feature set excludes targets, dates, scores, and result-like fields.
+    - ``ranking_context_only`` also excludes team names to reduce memorization risk.
+    - ``with_team_identifiers`` keeps team names so we can measure that baseline
+      separately and label its metrics clearly.
+    """
+    if feature_set not in FEATURE_SET_NAMES:
+        raise ValueError(
+            f"Unknown feature_set '{feature_set}'. Expected one of: "
+            f"{', '.join(FEATURE_SET_NAMES)}."
+        )
+
+    excluded_columns = set(EXCLUDED_FEATURE_COLUMNS)
+    if feature_set == FEATURE_SET_RANKING_CONTEXT_ONLY:
+        excluded_columns.update(TEAM_IDENTIFIER_COLUMNS)
+
+    return [column for column in df.columns if column not in excluded_columns]
 
 
 def make_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
@@ -217,10 +256,13 @@ def make_preprocessor(X: pd.DataFrame) -> ColumnTransformer:
 def split_train_test(
     df: pd.DataFrame,
     target_column: str,
+    feature_columns: list[str],
     test_size: float = DEFAULT_TEST_SIZE,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, str]:
     """Create a train/test split, preferring chronological split when possible."""
-    feature_columns = get_feature_columns(df)
+    if not feature_columns:
+        raise ValueError("At least one feature column is required for training.")
+
     date_column = find_date_column(df)
 
     # If a date column exists, sort by date and test on the most recent rows.
@@ -317,6 +359,7 @@ def train_and_evaluate(
     X_test: pd.DataFrame,
     y_train: pd.Series,
     y_test: pd.Series,
+    feature_set: str,
 ) -> tuple[Pipeline, pd.DataFrame]:
     """Train each model and return the best model plus a metrics table."""
     metrics: list[dict[str, float | str]] = []
@@ -333,6 +376,7 @@ def train_and_evaluate(
         metrics.append(
             {
                 "model": model_name,
+                "feature_set": feature_set,
                 "accuracy": accuracy,
                 "macro_f1": macro_f1,
             }
@@ -358,15 +402,40 @@ def main() -> None:
     """Run the full MVP baseline training workflow."""
     df = load_features()
     target_column = validate_input_data(df)
-    X_train, X_test, y_train, y_test, split_method = split_train_test(df, target_column)
 
-    best_model, metrics_df = train_and_evaluate(X_train, X_test, y_train, y_test)
-    metrics_df.insert(1, "split_method", split_method)
-    save_outputs(best_model, metrics_df)
+    all_metrics: list[pd.DataFrame] = []
+    best_models: dict[tuple[str, str], Pipeline] = {}
 
-    best_row = metrics_df.iloc[0]
+    for feature_set in FEATURE_SET_NAMES:
+        feature_columns = get_feature_columns(df, feature_set=feature_set)
+        X_train, X_test, y_train, y_test, split_method = split_train_test(
+            df,
+            target_column,
+            feature_columns,
+        )
+        best_model, metrics_df = train_and_evaluate(
+            X_train,
+            X_test,
+            y_train,
+            y_test,
+            feature_set,
+        )
+        metrics_df.insert(2, "split_method", split_method)
+        all_metrics.append(metrics_df)
+
+        best_row_for_feature_set = metrics_df.iloc[0]
+        best_models[(feature_set, best_row_for_feature_set["model"])] = best_model
+
+    combined_metrics_df = pd.concat(all_metrics, ignore_index=True).sort_values(
+        by=["macro_f1", "accuracy"], ascending=False
+    )
+    best_row = combined_metrics_df.iloc[0]
+    best_model = best_models[(best_row["feature_set"], best_row["model"])]
+    save_outputs(best_model, combined_metrics_df)
+
     print("Baseline training complete.")
     print(f"Best model: {best_row['model']}")
+    print(f"Best feature set: {best_row['feature_set']}")
     print(f"Macro F1: {best_row['macro_f1']:.4f}")
     print(f"Accuracy: {best_row['accuracy']:.4f}")
     print(f"Saved model to: {MODEL_PATH}")

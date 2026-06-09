@@ -1,0 +1,5 @@
+model,feature_set,split_method,accuracy,macro_f1
+LogisticRegression,ranking_context_only,date_based:date,0.0,0.0
+RandomForestClassifier,ranking_context_only,date_based:date,0.0,0.0
+LogisticRegression,with_team_identifiers,date_based:date,0.0,0.0
+RandomForestClassifier,with_team_identifiers,date_based:date,0.0,0.0
