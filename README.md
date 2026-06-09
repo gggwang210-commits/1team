@@ -74,6 +74,8 @@ The implemented MVP pipeline now has five explicit stages:
 │   └── 03_baseline_modeling.ipynb    # Baseline modeling exploration notebook
 ├── reports/                          # Data quality, evaluation, and prediction reports
 │   └── .gitkeep
+├── scripts/
+│   └── smoke_test.sh                 # Main-branch smoke test wrapper
 ├── src/
 │   ├── data/
 │   │   ├── build_dataset.py          # Dataset assembly and train/test split helpers
@@ -155,6 +157,36 @@ The implemented MVP pipeline now has five explicit stages:
    ```bash
    streamlit run app/streamlit_app.py
    ```
+
+## CI and Local Smoke Test
+
+Run smoke tests from the `main` branch so CI and local results are reproducible.
+Fetch and check out `main` immediately before the smoke test, then run the wrapper:
+
+```bash
+git fetch origin main && git checkout main
+./scripts/smoke_test.sh
+```
+
+The smoke test wrapper intentionally fails before running project commands when a
+local `main` branch is missing. This prevents accidentally validating a feature
+branch or a detached checkout as the MVP baseline.
+
+The wrapper writes `reports/smoke_test_report.md` and records:
+
+- execution branch
+- commit hash
+- start and finish timestamps in UTC
+- smoke test status
+- failed command, when applicable
+- commands executed
+
+The wrapper executes the MVP pipeline in order:
+
+1. `python src/data/build_dataset.py`
+2. `python src/features/make_features.py`
+3. `python src/models/train_baseline.py`
+4. `python src/models/evaluate.py`
 
 ## MVP Deliverables
 
