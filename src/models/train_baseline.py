@@ -1,4 +1,4 @@
-"""Train MVP Win/Draw/Loss baseline models.
+"""Train MVP Win/Draw/Loss baseline models from Korea Republic's perspective.
 
 This script reads the model-ready feature table, trains two simple baseline
 classifiers, compares them with Accuracy and Macro F1, then saves the best
@@ -28,8 +28,11 @@ FEATURES_PATH = PROJECT_ROOT / "data" / "processed" / "features.csv"
 MODEL_PATH = PROJECT_ROOT / "models" / "baseline_model.pkl"
 METRICS_PATH = PROJECT_ROOT / "reports" / "baseline_metrics.csv"
 
-# The target may use either name depending on the feature engineering step.
-TARGET_CANDIDATES = ("target_result", "target")
+# The feature pipeline writes this stable column name from
+# ``target_result_korea_perspective``. Keeping one explicit target avoids
+# accidentally training on the home-team perspective label.
+TARGET_COLUMN = "target_result"
+SOURCE_TARGET_COLUMN = "target_result_korea_perspective"
 
 # Baseline training is explicitly scoped to three soccer outcome labels.
 # Keeping this as a set makes exact membership checks easy to read.
@@ -47,6 +50,7 @@ DATE_CANDIDATES = ("date", "match_date", "game_date")
 # should not be used as model inputs. Keeping them out reduces leakage risk.
 EXCLUDED_FEATURE_COLUMNS = {
     "target_result",
+    "target_result_korea_perspective",
     "target",
     "date",
     "match_date",
@@ -68,12 +72,12 @@ def load_features(path: Path = FEATURES_PATH) -> pd.DataFrame:
 
 
 def find_target_column(df: pd.DataFrame) -> str:
-    """Return the first supported target column name found in the data."""
-    for column in TARGET_CANDIDATES:
-        if column in df.columns:
-            return column
+    """Return the explicit Korea-perspective target column name."""
+    if TARGET_COLUMN in df.columns:
+        return TARGET_COLUMN
     raise ValueError(
-        "Missing target column. Expected one of: " + ", ".join(TARGET_CANDIDATES)
+        f"Missing target column '{TARGET_COLUMN}'. Run src/features/make_features.py "
+        f"so '{SOURCE_TARGET_COLUMN}' is copied into the model target."
     )
 
 
@@ -95,7 +99,8 @@ def validate_input_data(df: pd.DataFrame, test_size: float = DEFAULT_TEST_SIZE) 
     if df.empty:
         raise ValueError(
             "Feature dataset is empty. Expected data/processed/features.csv to "
-            "contain at least one row, a supported target column, and feature columns."
+            f"contain at least one row, the '{TARGET_COLUMN}' target column, and "
+            "feature columns."
         )
 
     target_column = find_target_column(df)
@@ -177,7 +182,12 @@ def minimum_rows_for_split(class_count: int, test_size: float) -> int:
 
 
 def get_feature_columns(df: pd.DataFrame) -> list[str]:
-    """Choose model input columns while excluding targets, dates, and leakage."""
+    """Choose model input columns while excluding targets, dates, and leakage.
+
+    This helper is shared by training and prediction to keep schemas aligned.
+    Both the stable model target and the source Korea-perspective target are
+    excluded from inputs to prevent target leakage.
+    """
     return [column for column in df.columns if column not in EXCLUDED_FEATURE_COLUMNS]
 
 

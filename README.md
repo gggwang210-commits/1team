@@ -12,9 +12,13 @@ Machine Learning based prediction system for:
 
 The current MVP focuses on predicting Korea Republic group-stage match outcome probabilities:
 
-- Win Probability
-- Draw Probability
-- Loss Probability
+- Korea Republic Win Probability
+- Korea Republic Draw Probability
+- Korea Republic Loss Probability
+
+All MVP labels and predictions use **Korea Republic's perspective**. For example,
+`Win` means Korea Republic wins the match, regardless of whether Korea Republic
+is listed as the home or away team.
 
 Later phases may expand to Round of 32 qualification probability and full tournament simulation.
 
@@ -36,13 +40,18 @@ The implemented MVP pipeline now has three explicit stages:
 1. `src/data/build_dataset.py` standardizes international match-result data and writes `data/processed/matches.csv`.
    - If no compatible raw CSV exists in `data/raw/`, it creates a built-in demo dataset.
    - The demo dataset has 15 labeled rows and three target classes so baseline training can run locally.
+   - Full international raw datasets are filtered to rows where Korea Republic is either `home_team` or `away_team`.
+   - `target_result` is the score-derived home-team perspective label.
+   - `target_result_korea_perspective` is the MVP label. It matches `target_result` when Korea Republic is the home team, reverses home `Win`/`Loss` when Korea Republic is the away team, and keeps `Draw` unchanged.
 2. `src/features/make_features.py` converts processed match rows into model-ready pre-match features and writes `data/processed/features.csv`.
-   - Final scores are used only to create `target_result`.
+   - Final scores are used only to create result labels.
+   - The training target is explicitly selected from `target_result_korea_perspective` and saved as `target_result` in the feature table for a stable modeling schema.
    - Score/result leakage columns are not included as model features.
 3. `src/models/train_baseline.py` validates the feature table before model fitting.
-   - Supported target columns: `target_result` or `target`.
+   - Supported target column: `target_result`, defined as Korea Republic-perspective Win/Draw/Loss.
    - Minimum requirements: at least two target classes, at least one non-empty usable feature column, at least two rows per class, and enough rows for the configured train/test split.
    - With the default 20% split and three classes, the MVP needs at least 15 labeled rows.
+4. `src/models/predict.py` writes Korea-perspective prediction columns such as `predicted_result_korea_perspective`, `probability_korea_Win`, `probability_korea_Draw`, and `probability_korea_Loss`.
 
 ## Project Structure
 
