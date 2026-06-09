@@ -71,6 +71,7 @@ Generated report files are intentionally not committed. Running the pipeline rec
    - Minimum requirements: at least two target classes, at least one non-empty usable feature column, at least two rows per class, and enough rows for the configured train/test split.
    - With the default 20% split and three classes, the MVP needs at least 15 labeled rows.
    - Baseline metrics are recorded for two explicit feature sets: `ranking_context_only` excludes `home_team` and `away_team`, while `with_team_identifiers` keeps those team-name identifiers for comparison.
+   - Implemented metrics include Accuracy, Macro F1, Log Loss, and one-vs-rest multiclass Brier Score. Log Loss and Brier Score are calculated from test-set `predict_proba` outputs, so they evaluate probability quality rather than only the final class label.
 
 ## Project Structure
 
@@ -229,5 +230,5 @@ The wrapper executes the MVP pipeline in order:
 
 - Replace the demo dataset with real historical international match results and FIFA rankings.
 - Add rolling recent-form features, rest-days features, and tournament-context features.
-- Add probability calibration and report Log Loss/Brier Score alongside Accuracy and Macro F1.
+- Add probability calibration and compare calibrated vs. uncalibrated Log Loss/Brier Score alongside Accuracy and Macro F1.
 - Add data governance checks before using any sensitive or licensed datasets.

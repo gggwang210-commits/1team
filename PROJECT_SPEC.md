@@ -30,9 +30,12 @@ perspective, regardless of whether Korea Republic is home or away.
 
 ## Evaluation
 
+Implemented baseline metrics:
+
 - Accuracy
+- Macro F1
 - Log Loss
-- Brier Score
+- One-vs-rest multiclass Brier Score
 
 ## Deliverables
 

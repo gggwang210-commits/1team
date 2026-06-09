@@ -1,8 +1,8 @@
 """Train MVP Win/Draw/Loss baseline models from Korea Republic's perspective.
 
 This script reads the model-ready feature table, trains two simple baseline
-classifiers, compares them with Accuracy and Macro F1, then saves the best
-model and a metrics report.
+classifiers, compares them with classification and probability-quality metrics,
+then saves the best model and a metrics report.
 """
 
 from __future__ import annotations
@@ -12,12 +12,13 @@ from pathlib import Path
 from typing import Optional
 
 import joblib
+import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, log_loss
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -386,6 +387,74 @@ def build_models(X_train: pd.DataFrame) -> dict[str, Pipeline]:
     }
 
 
+def calculate_multiclass_brier_score(
+    y_true: pd.Series,
+    probability_matrix: np.ndarray,
+    class_labels: np.ndarray,
+) -> float:
+    """Calculate one-vs-rest multiclass Brier Score.
+
+    Data flow for beginners:
+    - ``predict_proba`` returns one probability column per class in
+      ``model.classes_`` order.
+    - We convert each true label into one-vs-rest targets such as
+      ``[1, 0, 0]`` for the actual class and ``0`` for every other class.
+    - Brier Score is the mean squared difference between those binary targets
+      and the predicted probabilities. Lower is better.
+    """
+    if probability_matrix.ndim != 2:
+        raise ValueError("Predicted probabilities must be a 2D matrix.")
+
+    if probability_matrix.shape[1] != len(class_labels):
+        raise ValueError(
+            "Probability columns must match the number of model class labels. "
+            f"Got {probability_matrix.shape[1]} probability columns and "
+            f"{len(class_labels)} class labels."
+        )
+
+    unknown_labels = set(y_true) - set(class_labels)
+    if unknown_labels:
+        raise ValueError(
+            "y_true contains labels that were not learned by the model: "
+            f"{sorted(unknown_labels)}. Use a split where train covers every "
+            "test label before calculating probability metrics."
+        )
+
+    # One-vs-rest encoding without an extra dependency: each cell is 1 when the
+    # row's true label equals that probability column's class, otherwise 0.
+    true_one_vs_rest = (
+        np.asarray(y_true).reshape(-1, 1) == np.asarray(class_labels).reshape(1, -1)
+    ).astype(float)
+
+    return float(np.mean((probability_matrix - true_one_vs_rest) ** 2))
+
+
+def calculate_probability_metrics(
+    model: Pipeline,
+    X_test: pd.DataFrame,
+    y_test: pd.Series,
+) -> tuple[float, float]:
+    """Return Log Loss and one-vs-rest Brier Score from ``predict_proba``."""
+    if not hasattr(model, "predict_proba"):
+        raise TypeError(
+            "Baseline probability metrics require models that implement "
+            "predict_proba()."
+        )
+
+    probabilities = model.predict_proba(X_test)
+    class_labels = np.asarray(model.classes_)
+
+    # Passing labels explicitly keeps Log Loss aligned to predict_proba columns,
+    # even when a small test fold does not contain every trained class.
+    model_log_loss = log_loss(y_test, probabilities, labels=class_labels)
+    brier_score = calculate_multiclass_brier_score(
+        y_true=y_test,
+        probability_matrix=probabilities,
+        class_labels=class_labels,
+    )
+    return float(model_log_loss), brier_score
+
+
 def train_and_evaluate(
     X_train: pd.DataFrame,
     X_test: pd.DataFrame,
@@ -400,6 +469,11 @@ def train_and_evaluate(
     for model_name, model in build_models(X_train).items():
         model.fit(X_train, y_train)
         predictions = model.predict(X_test)
+        model_log_loss, brier_score = calculate_probability_metrics(
+            model=model,
+            X_test=X_test,
+            y_test=y_test,
+        )
 
         accuracy = accuracy_score(y_test, predictions)
         macro_f1 = f1_score(y_test, predictions, average="macro", zero_division=0)
@@ -411,6 +485,8 @@ def train_and_evaluate(
                 "feature_set": feature_set,
                 "accuracy": accuracy,
                 "macro_f1": macro_f1,
+                "log_loss": model_log_loss,
+                "brier_score": brier_score,
             }
         )
 
@@ -470,6 +546,8 @@ def main() -> None:
     print(f"Best feature set: {best_row['feature_set']}")
     print(f"Macro F1: {best_row['macro_f1']:.4f}")
     print(f"Accuracy: {best_row['accuracy']:.4f}")
+    print(f"Log Loss: {best_row['log_loss']:.4f}")
+    print(f"Brier Score: {best_row['brier_score']:.4f}")
     print(f"Saved model to: {MODEL_PATH}")
     print(f"Saved metrics to: {METRICS_PATH}")
 
