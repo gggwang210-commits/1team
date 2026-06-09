@@ -1,7 +1,7 @@
 """Create model-ready MVP features from standardized match data.
 
 Data flow for beginners:
-1. Read ``data/interim/matches.csv`` produced by ``src/data/build_dataset.py``.
+1. Read ``data/processed/matches.csv`` produced by ``src/data/build_dataset.py``.
 2. Convert raw match facts into model inputs such as rank difference and neutral
    venue flag.
 3. Save ``data/processed/features.csv`` for ``src/models/train_baseline.py``.
@@ -17,14 +17,14 @@ from pathlib import Path
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MATCHES_PATH = PROJECT_ROOT / "data" / "interim" / "matches.csv"
+MATCHES_PATH = PROJECT_ROOT / "data" / "processed" / "matches.csv"
 FEATURES_PATH = PROJECT_ROOT / "data" / "processed" / "features.csv"
 
 REQUIRED_COLUMNS = {"date", "home_team", "away_team", "target_result"}
 
 
 def load_matches(path: Path = MATCHES_PATH) -> pd.DataFrame:
-    """Load the interim match table created by the data-building step."""
+    """Load the processed match table created by the data-building step."""
     if not path.exists():
         raise FileNotFoundError(
             f"Match dataset not found: {path}. Run src/data/build_dataset.py first."
@@ -34,7 +34,7 @@ def load_matches(path: Path = MATCHES_PATH) -> pd.DataFrame:
     missing = REQUIRED_COLUMNS - set(matches.columns)
     if missing:
         raise ValueError(
-            "Interim match dataset is missing required columns: "
+            "Processed match dataset is missing required columns: "
             + ", ".join(sorted(missing))
         )
     return matches

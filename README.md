@@ -33,10 +33,10 @@ Research & MVP Phase
 
 The implemented MVP pipeline now has three explicit stages:
 
-1. `src/data/build_dataset.py` standardizes international match-result data and writes `data/interim/matches.csv`.
+1. `src/data/build_dataset.py` standardizes international match-result data and writes `data/processed/matches.csv`.
    - If no compatible raw CSV exists in `data/raw/`, it creates a built-in demo dataset.
    - The demo dataset has 15 labeled rows and three target classes so baseline training can run locally.
-2. `src/features/make_features.py` converts interim match rows into model-ready pre-match features and writes `data/processed/features.csv`.
+2. `src/features/make_features.py` converts processed match rows into model-ready pre-match features and writes `data/processed/features.csv`.
    - Final scores are used only to create `target_result`.
    - Score/result leakage columns are not included as model features.
 3. `src/models/train_baseline.py` validates the feature table before model fitting.
@@ -109,11 +109,10 @@ The implemented MVP pipeline now has three explicit stages:
 
    If no compatible raw CSV is present, the MVP uses a small built-in demo dataset for local pipeline testing.
 
-4. Build the interim match dataset.
+4. Build the processed match dataset.
 
    ```bash
    python src/data/build_dataset.py
-   python src/features/make_features.py
    ```
 
 5. Create model-ready features.

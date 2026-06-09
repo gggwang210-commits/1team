@@ -4,7 +4,7 @@ Data flow for beginners:
 1. Prefer real raw CSV files in ``data/raw`` when they use common football
    results columns such as ``date``, ``home_team``, and ``away_team``.
 2. If raw data is not available yet, create a small but trainable demo dataset.
-3. Save the standardized match table to ``data/interim/matches.csv``.
+3. Save the standardized match table to ``data/processed/matches.csv``.
 
 The demo dataset is intentionally simple, but it is large enough to support a
 stratified train/test split for the baseline classifier.
@@ -18,8 +18,8 @@ import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RAW_DIR = PROJECT_ROOT / "data" / "raw"
-INTERIM_DIR = PROJECT_ROOT / "data" / "interim"
-MATCHES_PATH = INTERIM_DIR / "matches.csv"
+PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
+MATCHES_PATH = PROCESSED_DIR / "matches.csv"
 
 REQUIRED_MATCH_COLUMNS = {"date", "home_team", "away_team", "home_score", "away_score"}
 
@@ -142,7 +142,9 @@ def build_dataset() -> pd.DataFrame:
     matches = matches.sort_values("date").drop_duplicates().reset_index(drop=True)
     matches["date"] = matches["date"].dt.strftime("%Y-%m-%d")
 
-    INTERIM_DIR.mkdir(parents=True, exist_ok=True)
+    # ``processed`` is the stable hand-off directory for downstream pipeline
+    # steps such as feature engineering and smoke tests.
+    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     matches.to_csv(MATCHES_PATH, index=False)
     print(f"Saved MVP match dataset with {len(matches)} rows to: {MATCHES_PATH}")
     return matches
