@@ -186,7 +186,8 @@ The wrapper executes the MVP pipeline in order:
 1. `python src/data/build_dataset.py`
 2. `python src/features/make_features.py`
 3. `python src/models/train_baseline.py`
-4. `python src/models/evaluate.py`
+4. `python src/models/predict.py`
+5. `python src/models/evaluate.py`
 
 ## MVP Deliverables
 
