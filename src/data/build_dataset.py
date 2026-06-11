@@ -4,7 +4,8 @@ Data flow for beginners:
 1. Prefer real raw CSV files in ``data/raw`` when they use common football
    results columns such as ``date``, ``home_team``, and ``away_team``.
 2. If raw data is not available yet, create a small but trainable demo dataset.
-3. Save the standardized match table to ``data/processed/matches.csv``.
+3. Save the standardized match table to ``data/processed/matches.csv`` for the
+   Korea MVP or ``data/processed/matches_global.csv`` for global expansion.
 
 Default behavior preserves the Korea Republic MVP scope. Expansion work can call
 ``build_dataset(filter_korea=False)`` or run this script with ``--global-scope``
@@ -22,6 +23,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RAW_DIR = PROJECT_ROOT / "data" / "raw"
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 MATCHES_PATH = PROCESSED_DIR / "matches.csv"
+GLOBAL_MATCHES_PATH = PROCESSED_DIR / "matches_global.csv"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 DATA_QUALITY_SUMMARY_PATH = REPORTS_DIR / "data_quality_summary.md"
 
@@ -245,12 +247,23 @@ def _build_demo_matches() -> pd.DataFrame:
     )
 
 
-def build_dataset(filter_korea: bool = True) -> pd.DataFrame:
+def _default_output_path(filter_korea: bool) -> Path:
+    """Choose the safe default output path for MVP or global mode."""
+    return MATCHES_PATH if filter_korea else GLOBAL_MATCHES_PATH
+
+
+def build_dataset(
+    filter_korea: bool = True,
+    output_path: Path | str | None = None,
+) -> pd.DataFrame:
     """Build and persist the standardized match dataset.
 
     Args:
         filter_korea: When True, preserve the Korea Republic MVP scope. When
             False, keep all compatible international rows for expansion work.
+        output_path: Optional custom CSV path. When omitted, MVP mode writes
+            ``data/processed/matches.csv`` and global mode writes
+            ``data/processed/matches_global.csv``.
     """
     matches = _load_first_compatible_raw_csv()
     if matches is None:
@@ -279,11 +292,15 @@ def build_dataset(filter_korea: bool = True) -> pd.DataFrame:
     matches = matches.sort_values("date").drop_duplicates().reset_index(drop=True)
     matches["date"] = matches["date"].dt.strftime("%Y-%m-%d")
 
-    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-    matches.to_csv(MATCHES_PATH, index=False)
+    resolved_output_path = Path(output_path) if output_path else _default_output_path(filter_korea)
+    resolved_output_path.parent.mkdir(parents=True, exist_ok=True)
+    matches.to_csv(resolved_output_path, index=False)
 
     scope_name = "korea_mvp" if filter_korea else "global_expansion"
-    print(f"Saved {scope_name} match dataset with {len(matches)} rows to: {MATCHES_PATH}")
+    print(
+        f"Saved {scope_name} match dataset with {len(matches)} rows to: "
+        f"{resolved_output_path}"
+    )
     _write_data_quality_summary(matches, scope_name=scope_name)
     return matches
 
@@ -294,7 +311,20 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--global-scope",
         action="store_true",
-        help="Keep all compatible international rows instead of Korea-only MVP rows.",
+        help=(
+            "Keep all compatible international rows instead of Korea-only MVP rows. "
+            "By default this writes data/processed/matches_global.csv."
+        ),
+    )
+    parser.add_argument(
+        "--output-path",
+        type=Path,
+        default=None,
+        help=(
+            "Optional custom output CSV path. If omitted, MVP writes "
+            "data/processed/matches.csv and global scope writes "
+            "data/processed/matches_global.csv."
+        ),
     )
     return parser.parse_args()
 
@@ -302,7 +332,7 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     """CLI entry point for the data-building step."""
     args = _parse_args()
-    build_dataset(filter_korea=not args.global_scope)
+    build_dataset(filter_korea=not args.global_scope, output_path=args.output_path)
 
 
 if __name__ == "__main__":
