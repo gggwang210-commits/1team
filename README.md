@@ -6,7 +6,7 @@ Machine Learning based prediction system for Korea Republic outcomes.
 
 Current MVP:
 
-- Korea Republic match-level Win/Draw/Loss probabilities
+- Korea match-level Win/Draw/Loss probabilities
 
 Extension Goals:
 
