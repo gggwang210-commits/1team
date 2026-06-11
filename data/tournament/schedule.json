@@ -1,0 +1,60 @@
+{
+  "data_status": "SKELETON_NOT_OFFICIAL",
+  "source_note": "Structure-only file for Phase 2-3 development. Replace TBD values after confirming the official FIFA 2026 match schedule, venues, dates, kickoff times, and teams.",
+  "last_updated": "2026-06-11",
+  "tournament": {
+    "name": "2026 FIFA World Cup",
+    "schedule_version": "TBD",
+    "timezone_policy": "TBD",
+    "notes": "This file defines the expected interface for prediction and simulation code. It is not an official schedule."
+  },
+  "matches": [
+    {
+      "match_id": "G01_M01",
+      "stage": "group",
+      "group": "TBD",
+      "matchday": 1,
+      "date": "TBD",
+      "kickoff_time_local": "TBD",
+      "venue": "TBD",
+      "city": "TBD",
+      "home_team": "TBD",
+      "away_team": "TBD",
+      "home_fifa_code": "TBD",
+      "away_fifa_code": "TBD",
+      "notes": "Group-stage placeholder. Replace with official schedule data before model use."
+    },
+    {
+      "match_id": "G01_M02",
+      "stage": "group",
+      "group": "TBD",
+      "matchday": 1,
+      "date": "TBD",
+      "kickoff_time_local": "TBD",
+      "venue": "TBD",
+      "city": "TBD",
+      "home_team": "TBD",
+      "away_team": "TBD",
+      "home_fifa_code": "TBD",
+      "away_fifa_code": "TBD",
+      "notes": "Group-stage placeholder. Replace with official schedule data before model use."
+    },
+    {
+      "match_id": "R32_M01",
+      "stage": "round_of_32",
+      "group": null,
+      "matchday": null,
+      "date": "TBD",
+      "kickoff_time_local": "TBD",
+      "venue": "TBD",
+      "city": "TBD",
+      "home_team": "TBD",
+      "away_team": "TBD",
+      "home_fifa_code": "TBD",
+      "away_fifa_code": "TBD",
+      "qualification_rule_home": "TBD",
+      "qualification_rule_away": "TBD",
+      "notes": "Knockout-stage placeholder. Teams should be resolved from bracket rules after group simulation."
+    }
+  ]
+}
