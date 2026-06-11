@@ -23,11 +23,11 @@ The immediate goal is not to replace the working MVP. The goal is to preserve th
 | Service path | Streamlit demo | Streamlit MVP, optional Django dashboard/API |
 | Data pipeline | Korea filtering | Global standardization + team-name mapping |
 
-## Target Scope and File Strategy
+## Target Scope, File, and Artifact Strategy
 
-The project separates dataset scope, target scope, and generated output files so MVP and global expansion runs do not overwrite each other by default.
+The project separates dataset scope, target scope, generated processed files, and model artifacts so MVP and global expansion runs do not overwrite each other by default.
 
-| Step | MVP mode | Global expansion mode |
+| Step | MVP mode | Global baseline mode |
 | --- | --- | --- |
 | Dataset build command | `python src/data/build_dataset.py` | `python src/data/build_dataset.py --global-scope` |
 | Match output | `data/processed/matches.csv` | `data/processed/matches_global.csv` |
@@ -36,6 +36,9 @@ The project separates dataset scope, target scope, and generated output files so
 | Feature output | `data/processed/features.csv` | `data/processed/features_global.csv` |
 | Source target | `target_result_korea_perspective` | `target_result` |
 | Meaning of output `target_result` | Korea Republic perspective | Home-team perspective |
+| Baseline training command | `python src/models/train_baseline.py` | `python src/models/train_baseline.py --features-path data/processed/features_global.csv --run-name global_baseline` |
+| Model artifact | `models/baseline_model.pkl` | `models/global_baseline_model.pkl` |
+| Metrics artifact | `reports/baseline_metrics.csv` | `reports/global_baseline_metrics.csv` |
 
 This separation prevents the global dataset from depending on Korea-only labels. In global mode, `target_result_korea_perspective` may be missing for non-Korea matches; that is expected and allowed. The global feature path uses the home-team perspective target instead.
 
@@ -97,15 +100,18 @@ Expected outputs:
 
 Priority tasks:
 
-1. Add `train_baseline.py` support for `--features-path` or `--run-name`.
-2. Train global baseline models without overwriting MVP model artifacts.
-3. Compare `ranking_context_only` against `with_team_identifiers`.
-4. Document team-name memorization risk.
-5. Add probability calibration using Platt Scaling or Isotonic Regression.
-6. Compare calibrated and uncalibrated Log Loss and Brier Score.
+1. Train MVP baseline and global baseline without overwriting each other.
+2. Use `train_baseline.py --features-path` and `--run-name` for global baseline runs.
+3. Compare MVP metrics and global metrics at a high level, while remembering they are trained on different scopes.
+4. Compare `ranking_context_only` against `with_team_identifiers`.
+5. Document team-name memorization risk.
+6. Add probability calibration using Platt Scaling or Isotonic Regression.
+7. Compare calibrated and uncalibrated Log Loss and Brier Score.
 
 Expected outputs:
 
+- `models/baseline_model.pkl`
+- `models/global_baseline_model.pkl`
 - `reports/baseline_metrics.csv`
 - `reports/global_baseline_metrics.csv`
 - `reports/calibration_report/`
@@ -185,24 +191,25 @@ python src/models/predict.py
 python src/models/evaluate.py
 ```
 
-Global expansion feature check:
+Global baseline check:
 
 ```bash
 python src/data/build_dataset.py --global-scope
 python src/features/make_features.py --target-scope home
+python src/models/train_baseline.py --features-path data/processed/features_global.csv --run-name global_baseline
 ```
 
-Processed file existence check:
+Model artifact existence check:
 
 ```bash
 python - <<'PY'
 from pathlib import Path
 
 paths = [
-    "data/processed/matches.csv",
-    "data/processed/features.csv",
-    "data/processed/matches_global.csv",
-    "data/processed/features_global.csv",
+    "models/baseline_model.pkl",
+    "reports/baseline_metrics.csv",
+    "models/global_baseline_model.pkl",
+    "reports/global_baseline_metrics.csv",
 ]
 
 for path in paths:
@@ -211,11 +218,13 @@ for path in paths:
 PY
 ```
 
-Custom output example:
+Custom baseline output example:
 
 ```bash
-python src/data/build_dataset.py --global-scope --output-path data/processed/custom_matches.csv
-python src/features/make_features.py --target-scope home --input-path data/processed/custom_matches.csv --output-path data/processed/custom_features.csv
+python src/models/train_baseline.py \
+  --features-path data/processed/features_global.csv \
+  --model-path models/custom_global_model.pkl \
+  --metrics-path reports/custom_global_metrics.csv
 ```
 
 Data skeleton syntax check:
@@ -244,8 +253,8 @@ python src/data/validate_team_mapping.py
 | Team-name inconsistency | High | Create `team_name_mapping.csv` and validate early |
 | Target meaning confusion | High | Use explicit `--target-scope korea/home` and audit columns |
 | Official vs skeleton data confusion | High | Keep `SKELETON_NOT_OFFICIAL`, `source_note`, and `TBD` values until verified |
-| Generated file overwrite between MVP/global modes | Lower after Phase 1-5 | MVP and global processed outputs now use separate default paths |
-| Global model artifact overwrite | Medium | Next add `train_baseline.py --features-path` or `--run-name` |
+| Generated file overwrite between MVP/global modes | Lower after Phase 1-5 | MVP and global processed outputs use separate default paths |
+| Global model artifact overwrite | Lower after Phase 2-1 | `--features-path`, `--run-name`, `--model-path`, and `--metrics-path` separate artifacts |
 | Probability calibration quality | High | Use calibration curves and Brier Score comparison |
 | Knockout draw handling | Medium | Make draw-to-winner assumption explicit |
 | Tournament schedule changes | Medium | Record data version and reference date |
@@ -263,8 +272,8 @@ python src/data/validate_team_mapping.py
 
 ## Next Actions
 
-1. Run MVP verification commands.
-2. Run global feature file generation check.
-3. Confirm `matches_global.csv` and `features_global.csv` are generated separately.
-4. Add `train_baseline.py --features-path` or `--run-name` so global baseline training does not overwrite MVP model artifacts.
-5. Design separate global baseline model and metrics output paths.
+1. Run MVP baseline verification.
+2. Run global baseline verification.
+3. Compare `reports/baseline_metrics.csv` and `reports/global_baseline_metrics.csv` carefully, noting that dataset scopes differ.
+4. Design probability calibration workflow.
+5. Add `src/models/calibrate.py` in the next phase.
