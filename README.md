@@ -59,10 +59,23 @@ Key changes:
 
 - `src/data/build_dataset.py` supports `filter_korea=True` by default for the MVP and `filter_korea=False` for global data expansion.
 - `src/features/make_features.py` supports `--target-scope korea` for the MVP and `--target-scope home` for global expansion feature generation.
-- `data/mappings/` is reserved for `team_name_mapping.csv`.
-- `data/tournament/` is reserved for 2026 participants, schedule, and bracket inputs.
+- `data/mappings/team_name_mapping.csv` provides an initial country alias mapping draft.
+- `data/tournament/participants.json`, `schedule.json`, and `bracket.json` provide skeleton interfaces for future simulation work.
 - `src/simulation/` is reserved for tournament simulation code.
 - `docs/expansion_strategy.md` records the expansion roadmap and team decision points.
+
+## Phase 1 Data Files
+
+These files are committed because they are source data skeletons and interface definitions, not generated reports.
+
+| File | Purpose | Status |
+| --- | --- | --- |
+| `data/mappings/team_name_mapping.csv` | Country canonical-name, FIFA code, and alias mapping | Initial draft; validate against raw data |
+| `data/tournament/participants.json` | Participant input schema for simulation | `SKELETON_NOT_OFFICIAL` |
+| `data/tournament/schedule.json` | Match schedule input schema | `SKELETON_NOT_OFFICIAL` |
+| `data/tournament/bracket.json` | Group and knockout bracket schema | `SKELETON_NOT_OFFICIAL` |
+
+The tournament JSON files are not official FIFA data. Values marked `TBD` must be replaced only after official source verification.
 
 ## Stack
 
@@ -111,13 +124,17 @@ The implemented MVP pipeline has five explicit stages:
 │   ├── interim/                      # Intermediate cleaned data files
 │   │   └── .gitkeep
 │   ├── mappings/                     # Team name / FIFA code mapping files
-│   │   └── .gitkeep
+│   │   ├── .gitkeep
+│   │   └── team_name_mapping.csv
 │   ├── processed/                    # Model-ready datasets
 │   │   └── .gitkeep
 │   ├── raw/                          # Original downloaded datasets
 │   │   └── .gitkeep
 │   └── tournament/                   # Participants, schedule, and bracket inputs
-│       └── .gitkeep
+│       ├── .gitkeep
+│       ├── bracket.json
+│       ├── participants.json
+│       └── schedule.json
 ├── docs/
 │   └── expansion_strategy.md         # Global expansion roadmap
 ├── models/                           # Saved baseline model artifacts
@@ -246,6 +263,19 @@ Before running the MVP smoke test again, rebuild the default Korea MVP dataset a
 ```bash
 python src/data/build_dataset.py
 python src/features/make_features.py --target-scope korea
+```
+
+## Data Skeleton Syntax Check
+
+```bash
+python -m json.tool data/tournament/participants.json
+python -m json.tool data/tournament/schedule.json
+python -m json.tool data/tournament/bracket.json
+python - <<'PY'
+import pandas as pd
+pd.read_csv('data/mappings/team_name_mapping.csv')
+print('team_name_mapping.csv is readable')
+PY
 ```
 
 ## CI and Local Smoke Test
