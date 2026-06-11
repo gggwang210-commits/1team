@@ -1,12 +1,17 @@
-"""Train MVP Win/Draw/Loss baseline models from Korea Republic's perspective.
+"""Train Win/Draw/Loss baseline models for MVP or global feature tables.
 
-This script reads the model-ready feature table, trains two simple baseline
+This script reads a model-ready feature table, trains two simple baseline
 classifiers, compares them with classification and probability-quality metrics,
 then saves the best model and a metrics report.
+
+Default behavior preserves the Korea Republic MVP path. Expansion work can pass
+``--features-path`` and ``--run-name`` to train a separate global baseline without
+overwriting MVP artifacts.
 """
 
 from __future__ import annotations
 
+import argparse
 from math import ceil
 from pathlib import Path
 from typing import Optional
@@ -28,12 +33,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FEATURES_PATH = PROJECT_ROOT / "data" / "processed" / "features.csv"
 MODEL_PATH = PROJECT_ROOT / "models" / "baseline_model.pkl"
 METRICS_PATH = PROJECT_ROOT / "reports" / "baseline_metrics.csv"
+MODELS_DIR = PROJECT_ROOT / "models"
+REPORTS_DIR = PROJECT_ROOT / "reports"
 
-# The feature pipeline writes this stable column name from
-# ``target_result_korea_perspective``. Keeping one explicit target avoids
-# accidentally training on the home-team perspective label.
+# The feature pipeline writes this stable column name from the selected source
+# target. Keeping one explicit target avoids accidentally training on an audit
+# column or score column.
 TARGET_COLUMN = "target_result"
 SOURCE_TARGET_COLUMN = "target_result_korea_perspective"
+SOURCE_TARGET_COLUMN_AUDIT = "source_target_column"
+SOURCE_TARGET_SCOPE_AUDIT = "source_target_scope"
 
 # Baseline training is explicitly scoped to three soccer outcome labels.
 # Keeping this as a set makes exact membership checks easy to read.
@@ -47,12 +56,15 @@ DEFAULT_TEST_SIZE = 0.2
 # newer matches in test. This better matches real prediction usage.
 DATE_CANDIDATES = ("date", "match_date", "game_date")
 
-# Columns with these names are known result-like fields or targets, so they
-# should never be used as model inputs. Keeping this list separate from date
-# columns makes the leakage contract easy to audit when feature schemas change.
+# Columns with these names are known result-like fields, targets, or audit
+# metadata, so they should never be used as model inputs. Keeping this list
+# separate from date columns makes the leakage contract easy to audit when
+# feature schemas change.
 RESULT_LIKE_COLUMNS = {
     TARGET_COLUMN,
     SOURCE_TARGET_COLUMN,
+    SOURCE_TARGET_COLUMN_AUDIT,
+    SOURCE_TARGET_SCOPE_AUDIT,
     "target",
     "result",
     "score",
@@ -89,7 +101,7 @@ def load_features(path: Path = FEATURES_PATH) -> pd.DataFrame:
 
 
 def find_target_column(df: pd.DataFrame) -> str:
-    """Return the explicit Korea-perspective modeling target column name.
+    """Return the explicit modeling target column name.
 
     ``features.csv`` may also retain ``target_result_korea_perspective`` as an
     audit column, but the model target remains ``target_result``. This function
@@ -106,17 +118,39 @@ def find_target_column(df: pd.DataFrame) -> str:
     if TARGET_COLUMN not in df.columns:
         raise ValueError(
             f"Missing target column '{TARGET_COLUMN}'. Run src/features/make_features.py "
-            f"so '{SOURCE_TARGET_COLUMN}' is copied into the model target."
+            "before training."
         )
 
+    # In Korea MVP scope, the audit target should match the modeling target. In
+    # global/home scope, Korea-specific audit values can be missing for non-Korea
+    # matches, so equality is not required.
     if SOURCE_TARGET_COLUMN in df.columns:
-        target_values = df[TARGET_COLUMN].astype(str).str.strip()
-        source_values = df[SOURCE_TARGET_COLUMN].astype(str).str.strip()
-        if not target_values.equals(source_values):
-            raise ValueError(
-                f"Audit column '{SOURCE_TARGET_COLUMN}' must match modeling target "
-                f"'{TARGET_COLUMN}'. Regenerate features with src/features/make_features.py."
+        source_scope = None
+        if SOURCE_TARGET_SCOPE_AUDIT in df.columns:
+            source_scope_values = set(df[SOURCE_TARGET_SCOPE_AUDIT].dropna().astype(str))
+            if len(source_scope_values) == 1:
+                source_scope = next(iter(source_scope_values))
+
+        source_column = None
+        if SOURCE_TARGET_COLUMN_AUDIT in df.columns:
+            source_column_values = set(
+                df[SOURCE_TARGET_COLUMN_AUDIT].dropna().astype(str)
             )
+            if len(source_column_values) == 1:
+                source_column = next(iter(source_column_values))
+
+        should_check_korea_audit = (
+            source_scope == "korea" or source_column == SOURCE_TARGET_COLUMN
+        )
+        if should_check_korea_audit:
+            target_values = df[TARGET_COLUMN].astype(str).str.strip()
+            source_values = df[SOURCE_TARGET_COLUMN].astype(str).str.strip()
+            if not target_values.equals(source_values):
+                raise ValueError(
+                    f"Audit column '{SOURCE_TARGET_COLUMN}' must match modeling target "
+                    f"'{TARGET_COLUMN}' for Korea scope. Regenerate features with "
+                    "src/features/make_features.py --target-scope korea."
+                )
 
     return TARGET_COLUMN
 
@@ -133,12 +167,12 @@ def validate_input_data(df: pd.DataFrame, test_size: float = DEFAULT_TEST_SIZE) 
     """Check that the dataset has the columns, classes, and rows for training.
 
     This validation intentionally runs before scikit-learn. MVP datasets are
-    often tiny, and clear messages here are much easier to understand than
-    downstream errors from ``train_test_split`` or ``LogisticRegression``.
+often tiny, and clear messages here are much easier to understand than
+downstream errors from ``train_test_split`` or ``LogisticRegression``.
     """
     if df.empty:
         raise ValueError(
-            "Feature dataset is empty. Expected data/processed/features.csv to "
+            "Feature dataset is empty. Expected the selected feature CSV to "
             f"contain at least one row, the '{TARGET_COLUMN}' target column, and "
             "feature columns."
         )
@@ -196,7 +230,7 @@ def validate_input_data(df: pd.DataFrame, test_size: float = DEFAULT_TEST_SIZE) 
         raise ValueError(
             "Not enough examples per target class for a reliable train/test split. "
             f"Each class needs at least 2 rows; current counts are {class_counts.to_dict()}. "
-            "If this MVP dataset is intentionally tiny, add more labeled rows before "
+            "If this dataset is intentionally tiny, add more labeled rows before "
             "running baseline training so every class can appear in both train and test."
         )
 
@@ -344,7 +378,7 @@ def validate_split_data(
     if y_train.empty or y_test.empty:
         raise ValueError(
             f"The {split_method} split produced an empty train or test set. "
-            "Add more rows to data/processed/features.csv before training."
+            "Add more rows to the selected feature CSV before training."
         )
 
     if y_train.nunique() < 2:
@@ -497,18 +531,61 @@ def train_and_evaluate(
     return trained_models[best_model_name], metrics_df
 
 
-def save_outputs(best_model: Pipeline, metrics_df: pd.DataFrame) -> None:
+def save_outputs(
+    best_model: Pipeline,
+    metrics_df: pd.DataFrame,
+    model_path: Path = MODEL_PATH,
+    metrics_path: Path = METRICS_PATH,
+) -> None:
     """Save the selected model artifact and evaluation metrics."""
-    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    METRICS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    metrics_path.parent.mkdir(parents=True, exist_ok=True)
 
-    joblib.dump(best_model, MODEL_PATH)
-    metrics_df.to_csv(METRICS_PATH, index=False)
+    joblib.dump(best_model, model_path)
+    metrics_df.to_csv(metrics_path, index=False)
 
 
-def main() -> None:
-    """Run the full MVP baseline training workflow."""
-    df = load_features()
+def _validate_run_name(run_name: str) -> str:
+    """Validate a run name before turning it into output file paths."""
+    cleaned = run_name.strip()
+    if not cleaned:
+        raise ValueError("--run-name cannot be empty or whitespace.")
+    if "/" in cleaned or "\\" in cleaned:
+        raise ValueError("--run-name cannot contain path separators '/' or '\\'.")
+    return cleaned
+
+
+def _resolve_output_paths(
+    run_name: str | None,
+    model_path: Path | None,
+    metrics_path: Path | None,
+) -> tuple[Path, Path]:
+    """Resolve model and metrics paths from explicit paths, run name, or defaults."""
+    resolved_model_path = model_path
+    resolved_metrics_path = metrics_path
+
+    if run_name:
+        cleaned_run_name = _validate_run_name(run_name)
+        if resolved_model_path is None:
+            resolved_model_path = MODELS_DIR / f"{cleaned_run_name}_model.pkl"
+        if resolved_metrics_path is None:
+            resolved_metrics_path = REPORTS_DIR / f"{cleaned_run_name}_metrics.csv"
+
+    if resolved_model_path is None:
+        resolved_model_path = MODEL_PATH
+    if resolved_metrics_path is None:
+        resolved_metrics_path = METRICS_PATH
+
+    return resolved_model_path, resolved_metrics_path
+
+
+def train_baseline(
+    features_path: Path = FEATURES_PATH,
+    model_path: Path = MODEL_PATH,
+    metrics_path: Path = METRICS_PATH,
+) -> pd.DataFrame:
+    """Run the baseline training workflow and return combined metrics."""
+    df = load_features(features_path)
     target_column = validate_input_data(df)
 
     all_metrics: list[pd.DataFrame] = []
@@ -539,17 +616,70 @@ def main() -> None:
     )
     best_row = combined_metrics_df.iloc[0]
     best_model = best_models[(best_row["feature_set"], best_row["model"])]
-    save_outputs(best_model, combined_metrics_df)
+    save_outputs(best_model, combined_metrics_df, model_path=model_path, metrics_path=metrics_path)
 
     print("Baseline training complete.")
+    print(f"Input features: {features_path}")
     print(f"Best model: {best_row['model']}")
     print(f"Best feature set: {best_row['feature_set']}")
     print(f"Macro F1: {best_row['macro_f1']:.4f}")
     print(f"Accuracy: {best_row['accuracy']:.4f}")
     print(f"Log Loss: {best_row['log_loss']:.4f}")
     print(f"Brier Score: {best_row['brier_score']:.4f}")
-    print(f"Saved model to: {MODEL_PATH}")
-    print(f"Saved metrics to: {METRICS_PATH}")
+    print(f"Saved model to: {model_path}")
+    print(f"Saved metrics to: {metrics_path}")
+    return combined_metrics_df
+
+
+def _parse_args() -> argparse.Namespace:
+    """Parse CLI options for MVP and global baseline training runs."""
+    parser = argparse.ArgumentParser(description="Train baseline W/D/L models.")
+    parser.add_argument(
+        "--features-path",
+        type=Path,
+        default=FEATURES_PATH,
+        help=(
+            "Feature CSV to train from. Default preserves MVP behavior: "
+            "data/processed/features.csv."
+        ),
+    )
+    parser.add_argument(
+        "--model-path",
+        type=Path,
+        default=None,
+        help="Optional explicit output path for the trained model .pkl file.",
+    )
+    parser.add_argument(
+        "--metrics-path",
+        type=Path,
+        default=None,
+        help="Optional explicit output path for the metrics CSV file.",
+    )
+    parser.add_argument(
+        "--run-name",
+        default=None,
+        help=(
+            "Optional safe run name for output paths. Example: --run-name "
+            "global_baseline writes models/global_baseline_model.pkl and "
+            "reports/global_baseline_metrics.csv unless explicit output paths are given."
+        ),
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    """Run the baseline training workflow."""
+    args = _parse_args()
+    model_path, metrics_path = _resolve_output_paths(
+        run_name=args.run_name,
+        model_path=args.model_path,
+        metrics_path=args.metrics_path,
+    )
+    train_baseline(
+        features_path=args.features_path,
+        model_path=model_path,
+        metrics_path=metrics_path,
+    )
 
 
 if __name__ == "__main__":
