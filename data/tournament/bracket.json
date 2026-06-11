@@ -1,0 +1,105 @@
+{
+  "data_status": "SKELETON_NOT_OFFICIAL",
+  "source_note": "Structure-only file for Phase 2-3 development. Replace TBD values after confirming official FIFA 2026 group ranking rules and knockout bracket rules.",
+  "last_updated": "2026-06-11",
+  "tournament": {
+    "name": "2026 FIFA World Cup",
+    "bracket_version": "TBD",
+    "notes": "This file defines the expected interface for tournament simulation code. It is not an official bracket."
+  },
+  "group_stage_rules": {
+    "teams_per_group": "TBD",
+    "points_win": 3,
+    "points_draw": 1,
+    "points_loss": 0,
+    "ranking_tiebreakers": [
+      "points",
+      "goal_difference",
+      "goals_scored",
+      "head_to_head_points",
+      "head_to_head_goal_difference",
+      "head_to_head_goals_scored",
+      "fair_play_points",
+      "drawing_of_lots"
+    ],
+    "notes": "Tiebreaker order must be verified against official FIFA 2026 regulations before use."
+  },
+  "knockout_rules": {
+    "draw_allowed": false,
+    "draw_resolution_policy": "TBD",
+    "simulation_note": "If the match-level model outputs Win/Draw/Loss probabilities, knockout simulation must define how draw probability is redistributed or resolved."
+  },
+  "rounds": [
+    {
+      "round": "round_of_32",
+      "matches": [
+        {
+          "match_id": "R32_M01",
+          "slot_home": "TBD",
+          "slot_away": "TBD",
+          "winner_advances_to": "R16_M01",
+          "notes": "Placeholder bracket slot."
+        },
+        {
+          "match_id": "R32_M02",
+          "slot_home": "TBD",
+          "slot_away": "TBD",
+          "winner_advances_to": "R16_M01",
+          "notes": "Placeholder bracket slot."
+        }
+      ]
+    },
+    {
+      "round": "round_of_16",
+      "matches": [
+        {
+          "match_id": "R16_M01",
+          "slot_home": "Winner R32_M01",
+          "slot_away": "Winner R32_M02",
+          "winner_advances_to": "QF_M01",
+          "notes": "Derived from previous round winners."
+        }
+      ]
+    },
+    {
+      "round": "quarter_final",
+      "matches": [
+        {
+          "match_id": "QF_M01",
+          "slot_home": "TBD",
+          "slot_away": "TBD",
+          "winner_advances_to": "SF_M01",
+          "notes": "Placeholder."
+        }
+      ]
+    },
+    {
+      "round": "semi_final",
+      "matches": [
+        {
+          "match_id": "SF_M01",
+          "slot_home": "TBD",
+          "slot_away": "TBD",
+          "winner_advances_to": "FINAL",
+          "notes": "Placeholder."
+        }
+      ]
+    },
+    {
+      "round": "final",
+      "matches": [
+        {
+          "match_id": "FINAL",
+          "slot_home": "Winner SF_M01",
+          "slot_away": "Winner SF_M02",
+          "winner_advances_to": "CHAMPION",
+          "notes": "Final champion probability target."
+        }
+      ]
+    }
+  ],
+  "outputs": {
+    "round_advancement_probabilities": "reports/simulation_summary.csv",
+    "champion_probabilities": "reports/champion_probabilities.csv"
+  }
+}
