@@ -1,4 +1,4 @@
-"""Build the MVP match dataset used by feature engineering.
+"""Build the match dataset used by feature engineering.
 
 Data flow for beginners:
 1. Prefer real raw CSV files in ``data/raw`` when they use common football
@@ -6,12 +6,14 @@ Data flow for beginners:
 2. If raw data is not available yet, create a small but trainable demo dataset.
 3. Save the standardized match table to ``data/processed/matches.csv``.
 
-The demo dataset is intentionally simple, but it is large enough to support a
-stratified train/test split for the baseline classifier.
+Default behavior preserves the Korea Republic MVP scope. Expansion work can call
+``build_dataset(filter_korea=False)`` or run this script with ``--global-scope``
+to keep all compatible international rows.
 """
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 import pandas as pd
@@ -50,37 +52,34 @@ def _standardize_columns(df: pd.DataFrame) -> pd.DataFrame:
     return standardized
 
 
-def _add_target_result(df: pd.DataFrame) -> pd.DataFrame:
-    """Create three-class match result labels from final scores.
-
-    ``target_result`` intentionally remains the traditional home-team
-    perspective label. The MVP model, however, predicts Korea Republic's result,
-    so this function also creates ``target_result_korea_perspective``.
-    """
+def _add_home_perspective_target(df: pd.DataFrame) -> pd.DataFrame:
+    """Create a three-class result label from the home team's perspective."""
     labeled = df.copy()
     labeled["home_score"] = pd.to_numeric(labeled["home_score"], errors="coerce")
     labeled["away_score"] = pd.to_numeric(labeled["away_score"], errors="coerce")
 
-    # The model's target contract uses the home team's perspective:
-    # Win  = home_score > away_score
-    # Draw = home_score == away_score
-    # Loss = home_score < away_score
     labeled["target_result"] = "Draw"
     home_wins = labeled["home_score"] > labeled["away_score"]
     home_losses = labeled["home_score"] < labeled["away_score"]
     labeled.loc[home_wins, "target_result"] = "Win"
     labeled.loc[home_losses, "target_result"] = "Loss"
+    return labeled
 
+
+def _add_korea_perspective_target(df: pd.DataFrame, require_all_rows: bool) -> pd.DataFrame:
+    """Add Korea Republic perspective labels where Korea is in the match.
+
+    The MVP uses this as its business target. In global expansion mode, non-Korea
+    rows are allowed and keep this audit column empty.
+    """
+    labeled = df.copy()
     home_team = labeled["home_team"].astype(str).str.strip()
     away_team = labeled["away_team"].astype(str).str.strip()
     korea_home = home_team == KOREA_TEAM_NAME
     korea_away = away_team == KOREA_TEAM_NAME
     korea_match = korea_home | korea_away
 
-    # Fail fast if this MVP pipeline receives non-Korea matches. Without this
-    # guard, a missing Korea perspective label could silently train the model on
-    # the wrong business target.
-    if (~korea_match).any():
+    if require_all_rows and (~korea_match).any():
         invalid_rows = labeled.loc[~korea_match, ["date", "home_team", "away_team"]]
         raise ValueError(
             "Korea perspective target requires every row to include "
@@ -88,28 +87,37 @@ def _add_target_result(df: pd.DataFrame) -> pd.DataFrame:
             f"{invalid_rows.to_dict(orient='records')}"
         )
 
-    # Korea's label is identical to the home perspective when Korea is home.
-    # When Korea is away, home Win/Loss must be reversed; Draw stays Draw.
     reverse_home_result = {"Win": "Loss", "Loss": "Win", "Draw": "Draw"}
-    labeled[KOREA_TARGET_COLUMN] = labeled["target_result"]
+    labeled[KOREA_TARGET_COLUMN] = pd.NA
+    labeled.loc[korea_home, KOREA_TARGET_COLUMN] = labeled.loc[korea_home, "target_result"]
     labeled.loc[korea_away, KOREA_TARGET_COLUMN] = labeled.loc[
         korea_away, "target_result"
     ].map(reverse_home_result)
 
-    if labeled[KOREA_TARGET_COLUMN].isna().any():
+    if require_all_rows and labeled[KOREA_TARGET_COLUMN].isna().any():
         raise ValueError(
             f"Failed to create {KOREA_TARGET_COLUMN}; check score and team values."
         )
     return labeled
 
 
-def _filter_to_korea_matches(df: pd.DataFrame) -> pd.DataFrame:
-    """Keep only rows where Korea Republic is either home or away.
+def _add_target_result(df: pd.DataFrame, require_korea_perspective: bool = True) -> pd.DataFrame:
+    """Create result labels required by MVP and expansion pipelines.
 
-    Public international-results files often contain every national team. The
-    MVP business question is Korea Republic outcomes, so filtering here keeps
-    downstream labels and model metrics aligned to that scope.
+    ``target_result`` remains the traditional home-team perspective label. The
+    MVP additionally requires ``target_result_korea_perspective`` for every row.
+    Global expansion mode keeps Korea perspective values only where available.
     """
+    labeled = _add_home_perspective_target(df)
+    labeled = _add_korea_perspective_target(
+        labeled,
+        require_all_rows=require_korea_perspective,
+    )
+    return labeled
+
+
+def _filter_to_korea_matches(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep only rows where Korea Republic is either home or away."""
     home_team = df["home_team"].astype(str).str.strip()
     away_team = df["away_team"].astype(str).str.strip()
     korea_matches = df.loc[
@@ -126,12 +134,7 @@ def _filter_to_korea_matches(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _load_first_compatible_raw_csv(raw_dir: Path = RAW_DIR) -> pd.DataFrame | None:
-    """Return the first raw CSV that has enough match-result columns.
-
-    The project may use different Kaggle/public datasets during MVP discovery,
-    so this loader accepts common column variants instead of depending on one
-    exact filename.
-    """
+    """Return the first raw CSV that has enough match-result columns."""
     if not raw_dir.exists():
         return None
 
@@ -144,24 +147,15 @@ def _load_first_compatible_raw_csv(raw_dir: Path = RAW_DIR) -> pd.DataFrame | No
 
 
 def _format_markdown_table(headers: list[str], rows: list[list[object]]) -> str:
-    """Return a small dependency-free Markdown table.
-
-    Keeping this formatter local avoids adding a reporting framework or a new
-    package dependency just to write the MVP data-quality summary.
-    """
+    """Return a small dependency-free Markdown table."""
     header_row = "| " + " | ".join(headers) + " |"
     separator_row = "| " + " | ".join("---" for _ in headers) + " |"
     data_rows = ["| " + " | ".join(str(value) for value in row) + " |" for row in rows]
     return "\n".join([header_row, separator_row, *data_rows])
 
 
-def _write_data_quality_summary(matches: pd.DataFrame) -> None:
-    """Write a minimal data-quality report for the processed match dataset.
-
-    The report intentionally stays lightweight: row count, missing values by
-    column, and target-class distributions. That is enough to document the MVP
-    dataset state without introducing complex validation infrastructure.
-    """
+def _write_data_quality_summary(matches: pd.DataFrame, scope_name: str) -> None:
+    """Write a minimal data-quality report for the processed match dataset."""
     if matches.empty:
         raise ValueError("Cannot write a data quality summary for an empty dataset.")
 
@@ -174,6 +168,10 @@ def _write_data_quality_summary(matches: pd.DataFrame) -> None:
         "# Data Quality Summary",
         "",
         "This file is generated by `python src/data/build_dataset.py`.",
+        "",
+        "## Scope",
+        "",
+        f"- Dataset scope: {scope_name}",
         "",
         "## Row Count",
         "",
@@ -214,12 +212,7 @@ def _write_data_quality_summary(matches: pd.DataFrame) -> None:
 
 
 def _build_demo_matches() -> pd.DataFrame:
-    """Create a compact fallback dataset for local MVP development.
-
-    The fallback has 15 rows and three classes. With the default 20% test split,
-    this gives three test rows, which is the minimum needed for a stratified
-    three-class split.
-    """
+    """Create a compact fallback dataset for local MVP development."""
     rows = [
         ("2024-01-10", "Korea Republic", "Japan", 2, 1, False, 23, 18),
         ("2024-01-20", "Korea Republic", "Iran", 1, 1, True, 23, 20),
@@ -252,47 +245,64 @@ def _build_demo_matches() -> pd.DataFrame:
     )
 
 
-def build_dataset() -> pd.DataFrame:
-    """Build and persist the standardized MVP match dataset."""
+def build_dataset(filter_korea: bool = True) -> pd.DataFrame:
+    """Build and persist the standardized match dataset.
+
+    Args:
+        filter_korea: When True, preserve the Korea Republic MVP scope. When
+            False, keep all compatible international rows for expansion work.
+    """
     matches = _load_first_compatible_raw_csv()
     if matches is None:
         print("No compatible raw CSV found. Using built-in MVP demo data.")
         matches = _build_demo_matches()
-    matches = _standardize_columns(matches)
-    matches = _filter_to_korea_matches(matches)
-    matches = _add_target_result(matches)
 
-    # Keep only rows that can support supervised training.
+    matches = _standardize_columns(matches)
+    if filter_korea:
+        matches = _filter_to_korea_matches(matches)
+
+    matches = _add_target_result(matches, require_korea_perspective=filter_korea)
+
+    required_subset = [
+        "date",
+        "home_team",
+        "away_team",
+        "home_score",
+        "away_score",
+        "target_result",
+    ]
+    if filter_korea:
+        required_subset.append(KOREA_TARGET_COLUMN)
+
     matches["date"] = pd.to_datetime(matches["date"], errors="coerce")
-    matches = matches.dropna(
-        subset=[
-            "date",
-            "home_team",
-            "away_team",
-            "home_score",
-            "away_score",
-            "target_result",
-            KOREA_TARGET_COLUMN,
-        ]
-    )
+    matches = matches.dropna(subset=required_subset)
     matches = matches.sort_values("date").drop_duplicates().reset_index(drop=True)
     matches["date"] = matches["date"].dt.strftime("%Y-%m-%d")
 
-    # ``processed`` is the stable hand-off directory for downstream pipeline
-    # steps such as feature engineering and smoke tests.
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     matches.to_csv(MATCHES_PATH, index=False)
-    print(f"Saved MVP match dataset with {len(matches)} rows to: {MATCHES_PATH}")
 
-    # This generated report gives reviewers a quick sanity check of the dataset
-    # used by downstream feature engineering and baseline training.
-    _write_data_quality_summary(matches)
+    scope_name = "korea_mvp" if filter_korea else "global_expansion"
+    print(f"Saved {scope_name} match dataset with {len(matches)} rows to: {MATCHES_PATH}")
+    _write_data_quality_summary(matches, scope_name=scope_name)
     return matches
+
+
+def _parse_args() -> argparse.Namespace:
+    """Parse command-line options for MVP and expansion data builds."""
+    parser = argparse.ArgumentParser(description="Build processed match dataset.")
+    parser.add_argument(
+        "--global-scope",
+        action="store_true",
+        help="Keep all compatible international rows instead of Korea-only MVP rows.",
+    )
+    return parser.parse_args()
 
 
 def main() -> None:
     """CLI entry point for the data-building step."""
-    build_dataset()
+    args = _parse_args()
+    build_dataset(filter_korea=not args.global_scope)
 
 
 if __name__ == "__main__":
