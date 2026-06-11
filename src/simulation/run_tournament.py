@@ -1,11 +1,12 @@
-"""Phase 3-4 tournament simulation CLI scaffold with probability inputs.
+"""Phase 3-5 tournament simulation CLI scaffold with feature-row assembly.
 
 This scaffold intentionally does not run tournament simulation yet.
 It validates input paths, parses tournament JSON files, checks minimal schema
-contracts, warns about skeleton/TBD values, loads generated probability inputs
-when available, and prints scheduled-match probability candidate information.
+contracts, warns about skeleton/TBD values, loads generated probability inputs,
+prints scheduled-match probability candidate information, and assembles candidate
+feature rows when matching historical/global feature rows are available.
 
-No simulation reports are generated in this phase.
+No model.predict_proba call and no simulation reports are generated in this phase.
 """
 
 from __future__ import annotations
@@ -28,6 +29,12 @@ DEFAULT_REPORTS_DIR = PROJECT_ROOT / "reports"
 DEFAULT_OUTPUT_DIR = DEFAULT_REPORTS_DIR / "simulation_global"
 SKELETON_STATUS = "SKELETON_NOT_OFFICIAL"
 TBD_VALUE = "TBD"
+TARGET_AND_AUDIT_COLUMNS = {
+    "target_result",
+    "target_result_korea_perspective",
+    "source_target_column",
+    "source_target_scope",
+}
 
 
 def validate_run_name(run_name: str) -> str:
@@ -57,12 +64,6 @@ def load_json_file(path: Path, label: str) -> dict:
     if not isinstance(data, dict):
         raise ValueError(f"{label} JSON must contain an object at the top level: {path}")
     return data
-
-
-def validate_existing_file(path: Path, label: str, required: bool = True) -> None:
-    """Validate a file path when the current scaffold requires it."""
-    if required and not path.exists():
-        raise FileNotFoundError(f"{label} file not found: {path}")
 
 
 def resolve_output_dir(run_name: str, output_dir: Path | None) -> Path:
@@ -114,7 +115,11 @@ def find_tbd_values(value: Any, path: str = "$", limit: int = 20) -> list[str]:
 
 def validate_participants_schema(data: dict) -> list[str]:
     """Validate minimal participants.json schema and return warnings."""
-    require_keys(data, "participants", ["data_status", "source_note", "last_updated", "tournament", "participants"])
+    require_keys(
+        data,
+        "participants",
+        ["data_status", "source_note", "last_updated", "tournament", "participants"],
+    )
     warnings: list[str] = []
 
     if data.get("data_status") == SKELETON_STATUS:
@@ -125,7 +130,13 @@ def validate_participants_schema(data: dict) -> list[str]:
     if not isinstance(participants, list):
         raise ValueError("participants.participants must be a list.")
 
-    required_participant_keys = ["team_id", "canonical_name", "fifa_code", "group", "qualification_status"]
+    required_participant_keys = [
+        "team_id",
+        "canonical_name",
+        "fifa_code",
+        "group",
+        "qualification_status",
+    ]
     for index, participant in enumerate(participants):
         if not isinstance(participant, dict):
             raise ValueError(f"participants.participants[{index}] must be an object.")
@@ -171,7 +182,15 @@ def validate_bracket_schema(data: dict) -> list[str]:
     require_keys(
         data,
         "bracket",
-        ["data_status", "source_note", "last_updated", "tournament", "group_stage_rules", "knockout_rules", "rounds"],
+        [
+            "data_status",
+            "source_note",
+            "last_updated",
+            "tournament",
+            "group_stage_rules",
+            "knockout_rules",
+            "rounds",
+        ],
     )
     warnings: list[str] = []
 
@@ -201,7 +220,9 @@ def validate_bracket_schema(data: dict) -> list[str]:
                     f"bracket.rounds[{round_index}].matches[{match_index}] must be an object."
                 )
             missing_match_keys = [
-                key for key in ["match_id", "slot_home", "slot_away", "winner_advances_to"] if key not in match
+                key
+                for key in ["match_id", "slot_home", "slot_away", "winner_advances_to"]
+                if key not in match
             ]
             if missing_match_keys:
                 raise ValueError(
@@ -249,13 +270,7 @@ def infer_model_feature_columns(model, features: pd.DataFrame | None) -> list[st
         return [str(column) for column in preprocessor.feature_names_in_]
 
     if features is not None:
-        excluded = {
-            "target_result",
-            "target_result_korea_perspective",
-            "source_target_column",
-            "source_target_scope",
-        }
-        return [column for column in features.columns if column not in excluded]
+        return [column for column in features.columns if column not in TARGET_AND_AUDIT_COLUMNS]
     return []
 
 
@@ -296,6 +311,93 @@ def scheduled_match_candidates(schedule: dict) -> tuple[list[dict[str, Any]], li
             }
         )
     return candidates, warnings
+
+
+def matching_feature_rows(features: pd.DataFrame, candidate: dict[str, Any]) -> pd.DataFrame:
+    """Find historical/global feature rows matching a scheduled home-away pair."""
+    required_columns = {"home_team", "away_team"}
+    if not required_columns.issubset(features.columns):
+        return pd.DataFrame()
+
+    home_team = str(candidate["home_team"])
+    away_team = str(candidate["away_team"])
+    return features[
+        (features["home_team"].astype(str) == home_team)
+        & (features["away_team"].astype(str) == away_team)
+    ]
+
+
+def select_feature_template(rows: pd.DataFrame) -> pd.Series:
+    """Select a single feature template row, preferring the latest dated row."""
+    if rows.empty:
+        raise ValueError("Cannot select a feature template from an empty DataFrame.")
+    if "date" not in rows.columns:
+        return rows.iloc[-1]
+
+    dated_rows = rows.copy()
+    dated_rows["_parsed_date"] = pd.to_datetime(dated_rows["date"], errors="coerce")
+    dated_rows = dated_rows.sort_values("_parsed_date", na_position="first")
+    return dated_rows.drop(columns=["_parsed_date"]).iloc[-1]
+
+
+def assemble_scheduled_feature_rows(
+    candidates: list[dict[str, Any]],
+    features: pd.DataFrame | None,
+    feature_columns: list[str],
+) -> tuple[pd.DataFrame, list[dict[str, Any]], list[str]]:
+    """Assemble model-ready feature rows for scheduled matches when possible.
+
+    This is still a scaffold: it reuses the latest matching historical/global
+    home-away feature row as a temporary template. Later phases should replace
+    this with real pre-match feature construction from ranking, form, venue, and
+    schedule inputs.
+    """
+    warnings: list[str] = []
+    metadata_rows: list[dict[str, Any]] = []
+    assembled_rows: list[dict[str, Any]] = []
+
+    if not candidates:
+        warnings.append("No scheduled matches are ready for feature assembly.")
+        return pd.DataFrame(columns=feature_columns), metadata_rows, warnings
+
+    if features is None:
+        warnings.append("features_global.csv was not loaded, so scheduled feature rows were not assembled.")
+        return pd.DataFrame(columns=feature_columns), metadata_rows, warnings
+
+    if not feature_columns:
+        warnings.append("No feature columns were inferred, so scheduled feature rows were not assembled.")
+        return pd.DataFrame(), metadata_rows, warnings
+
+    missing_feature_columns = [column for column in feature_columns if column not in features.columns]
+    if missing_feature_columns:
+        warnings.append(
+            "features_global.csv is missing model feature columns, examples: "
+            f"{missing_feature_columns[:10]}"
+        )
+        return pd.DataFrame(columns=feature_columns), metadata_rows, warnings
+
+    for candidate in candidates:
+        rows = matching_feature_rows(features, candidate)
+        if rows.empty:
+            warnings.append(
+                f"No feature template found for {candidate['match_id']} "
+                f"({candidate['home_team']} vs {candidate['away_team']})."
+            )
+            continue
+
+        template = select_feature_template(rows)
+        assembled_rows.append(template[feature_columns].to_dict())
+        metadata_rows.append(
+            {
+                "match_id": candidate["match_id"],
+                "home_team": candidate["home_team"],
+                "away_team": candidate["away_team"],
+                "matched_feature_rows": int(len(rows)),
+                "template_strategy": "latest_matching_home_away_row",
+            }
+        )
+
+    return pd.DataFrame(assembled_rows, columns=feature_columns), metadata_rows, warnings
 
 
 def parse_args() -> argparse.Namespace:
@@ -388,7 +490,13 @@ def main() -> None:
     class_labels = model_class_labels(model)
     probability_columns = probability_column_names(class_labels)
     candidates, candidate_warnings = scheduled_match_candidates(schedule)
+    feature_frame, feature_metadata, assembly_warnings = assemble_scheduled_feature_rows(
+        candidates=candidates,
+        features=features,
+        feature_columns=feature_columns,
+    )
     warnings.extend(candidate_warnings)
+    warnings.extend(assembly_warnings)
 
     if args.n_simulations <= 0:
         raise ValueError("--n-simulations must be greater than 0.")
@@ -396,6 +504,8 @@ def main() -> None:
     print("Tournament simulation CLI scaffold ready.")
     print("Tournament JSON schema validation complete.")
     print("Scheduled-match probability scaffold complete.")
+    print("Scheduled-match feature row assembly scaffold complete.")
+    print("No model probabilities were generated.")
     print("No simulation was executed and no report files were generated.")
     print(f"participants_path: {args.participants_path}")
     print(f"schedule_path: {args.schedule_path}")
@@ -410,6 +520,8 @@ def main() -> None:
     print(f"probability_columns: {probability_columns}")
     print(f"feature_column_count: {len(feature_columns)}")
     print(f"prediction_candidate_count: {len(candidates)}")
+    print(f"assembled_feature_row_count: {len(feature_frame)}")
+    print(f"unassembled_candidate_count: {len(candidates) - len(feature_frame)}")
     print(f"run_name: {validate_run_name(args.run_name)}")
     print(f"output_dir: {output_dir}")
     print(f"n_simulations: {args.n_simulations}")
@@ -421,11 +533,15 @@ def main() -> None:
         print("Prediction candidates:")
         for candidate in candidates[:10]:
             print(f"- {candidate}")
+    if feature_metadata:
+        print("Feature assembly metadata:")
+        for metadata in feature_metadata[:10]:
+            print(f"- {metadata}")
     if warnings:
         print("Warnings:")
         for warning in warnings:
             print(f"- {warning}")
-    print("Next step: assemble scheduled-match feature rows for model.predict_proba().")
+    print("Next step: call model.predict_proba() on assembled scheduled feature rows.")
 
 
 if __name__ == "__main__":
