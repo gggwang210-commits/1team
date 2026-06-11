@@ -1,0 +1,57 @@
+{
+  "data_status": "SKELETON_NOT_OFFICIAL",
+  "source_note": "Structure-only file for Phase 2-3 development. Replace TBD values after confirming official FIFA 2026 participants, qualification status, and group draw from authoritative sources.",
+  "last_updated": "2026-06-11",
+  "tournament": {
+    "name": "2026 FIFA World Cup",
+    "host_countries": [
+      "Canada",
+      "Mexico",
+      "United States"
+    ],
+    "expected_team_count": 48,
+    "notes": "Host and tournament metadata must be verified against official sources before model use. This file is not an official participant list."
+  },
+  "participants": [
+    {
+      "team_id": "TBD_001",
+      "canonical_name": "TBD",
+      "fifa_code": "TBD",
+      "group": "TBD",
+      "qualification_status": "TBD",
+      "notes": "Placeholder. Replace after official qualification and group confirmation."
+    },
+    {
+      "team_id": "KOR",
+      "canonical_name": "Korea Republic",
+      "fifa_code": "KOR",
+      "group": "TBD",
+      "qualification_status": "TBD",
+      "notes": "Korea-related application case placeholder. Verify official qualification and group before model use."
+    },
+    {
+      "team_id": "USA",
+      "canonical_name": "United States",
+      "fifa_code": "USA",
+      "group": "TBD",
+      "qualification_status": "TBD",
+      "notes": "Placeholder for interface design. Verify official tournament metadata before model use."
+    },
+    {
+      "team_id": "MEX",
+      "canonical_name": "Mexico",
+      "fifa_code": "MEX",
+      "group": "TBD",
+      "qualification_status": "TBD",
+      "notes": "Placeholder for interface design. Verify official tournament metadata before model use."
+    },
+    {
+      "team_id": "CAN",
+      "canonical_name": "Canada",
+      "fifa_code": "CAN",
+      "group": "TBD",
+      "qualification_status": "TBD",
+      "notes": "Placeholder for interface design. Verify official tournament metadata before model use."
+    }
+  ]
+}
