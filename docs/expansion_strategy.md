@@ -23,19 +23,34 @@ The immediate goal is not to replace the working MVP. The goal is to preserve th
 | Service path | Streamlit demo | Streamlit MVP, optional Django dashboard/API |
 | Data pipeline | Korea filtering | Global standardization + team-name mapping |
 
+## Target Scope Strategy
+
+The project now separates dataset scope from modeling target scope.
+
+| Step | MVP mode | Global expansion mode |
+| --- | --- | --- |
+| Dataset build | `python src/data/build_dataset.py` | `python src/data/build_dataset.py --global-scope` |
+| Feature build | `python src/features/make_features.py --target-scope korea` | `python src/features/make_features.py --target-scope home` |
+| Source target | `target_result_korea_perspective` | `target_result` |
+| Meaning of `features.csv.target_result` | Korea Republic perspective | Home-team perspective |
+
+This separation prevents the global dataset from depending on Korea-only labels. In global mode, `target_result_korea_perspective` may be missing for non-Korea matches; that is expected and allowed. The global feature path should use the home-team perspective target instead.
+
 ## Phase 1: Data Expansion
 
 Priority tasks:
 
 1. Preserve the existing Korea MVP smoke-test path.
 2. Add optional global dataset mode using `filter_korea=False`.
-3. Prepare `data/mappings/` for `team_name_mapping.csv`.
-4. Prepare `data/tournament/` for 2026 participants, schedule, and bracket data.
-5. Document data-quality assumptions and data version information.
+3. Add target scope support in feature engineering.
+4. Prepare `data/mappings/` for `team_name_mapping.csv`.
+5. Prepare `data/tournament/` for 2026 participants, schedule, and bracket data.
+6. Document data-quality assumptions and data version information.
 
 Expected outputs:
 
 - `data/processed/matches.csv`
+- `data/processed/features.csv`
 - `data/mappings/team_name_mapping.csv`
 - `data/tournament/participants.json`
 - `data/tournament/schedule.json`
@@ -112,11 +127,39 @@ Expected outputs:
     └── champion_probabilities.csv
 ```
 
+## Verification Commands
+
+Korea MVP check:
+
+```bash
+python src/data/build_dataset.py
+python src/features/make_features.py --target-scope korea
+python src/models/train_baseline.py
+python src/models/predict.py
+python src/models/evaluate.py
+```
+
+Global expansion feature check:
+
+```bash
+python src/data/build_dataset.py --global-scope
+python src/features/make_features.py --target-scope home
+```
+
+Before returning to MVP work, rebuild the default Korea files:
+
+```bash
+python src/data/build_dataset.py
+python src/features/make_features.py --target-scope korea
+```
+
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | Team-name inconsistency | High | Create `team_name_mapping.csv` and validate early |
+| Target meaning confusion | High | Use explicit `--target-scope korea/home` and audit columns |
+| Generated file overwrite between MVP/global modes | Medium | Rebuild MVP files before smoke test; consider separate output files later |
 | Probability calibration quality | High | Use calibration curves and Brier Score comparison |
 | Knockout draw handling | Medium | Make draw-to-winner assumption explicit |
 | Tournament schedule changes | Medium | Record data version and reference date |
@@ -134,8 +177,8 @@ Expected outputs:
 
 ## Next Actions
 
-1. Share this strategy with the team.
-2. Create the first draft of `team_name_mapping.csv`.
-3. Add 2026 tournament input skeleton files.
-4. Run MVP smoke test to confirm the default Korea path still works.
-5. Start global dataset validation with `python src/data/build_dataset.py --global-scope`.
+1. Run MVP verification commands.
+2. Run global expansion feature check.
+3. Create the first draft of `team_name_mapping.csv`.
+4. Add 2026 tournament input skeleton files.
+5. Design `validate_team_mapping.py` for Phase 1 data-quality validation.
