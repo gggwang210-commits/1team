@@ -49,6 +49,21 @@ The Phase 1 data expansion files are interface-design inputs, not official tourn
 
 All tournament JSON skeleton files include `data_status`, `source_note`, and `last_updated`. Values marked `TBD` must be replaced only after official source verification.
 
+## Team Mapping Validation
+
+`src/data/validate_team_mapping.py` validates whether raw match team names are covered by `data/mappings/team_name_mapping.csv`.
+
+Validation flow:
+
+1. Scan `data/raw/*.csv`.
+2. Standardize column names and find files with `home_team` and `away_team` columns.
+3. Extract unique raw team names.
+4. Build a lookup from `canonical_name` and semicolon-separated `aliases`.
+5. Report unmapped names to `reports/unmapped_teams.csv`.
+6. Report summary and duplicate aliases to `reports/team_mapping_validation.md`.
+
+This is a data-quality workflow, not a model-training workflow. The generated report files should not be committed by default.
+
 ## Phase 1: Data Expansion
 
 Priority tasks:
@@ -56,7 +71,7 @@ Priority tasks:
 1. Preserve the existing Korea MVP smoke-test path.
 2. Add optional global dataset mode using `filter_korea=False`.
 3. Add target scope support in feature engineering.
-4. Prepare `data/mappings/` for `team_name_mapping.csv`.
+4. Prepare and validate `data/mappings/team_name_mapping.csv` against raw data.
 5. Prepare `data/tournament/` for 2026 participants, schedule, and bracket data.
 6. Document data-quality assumptions and data version information.
 
@@ -65,6 +80,8 @@ Expected outputs:
 - `data/processed/matches.csv`
 - `data/processed/features.csv`
 - `data/mappings/team_name_mapping.csv`
+- `reports/unmapped_teams.csv`
+- `reports/team_mapping_validation.md`
 - `data/tournament/participants.json`
 - `data/tournament/schedule.json`
 - `data/tournament/bracket.json`
@@ -119,7 +136,8 @@ Expected outputs:
 ├── src/
 │   ├── data/
 │   │   ├── build_dataset.py
-│   │   └── merge_rankings.py
+│   │   ├── merge_rankings.py
+│   │   └── validate_team_mapping.py
 │   ├── features/
 │   │   └── make_features.py
 │   ├── models/
@@ -136,6 +154,8 @@ Expected outputs:
     ├── baseline_metrics.csv
     ├── calibration_report/
     ├── prediction_table.csv
+    ├── unmapped_teams.csv
+    ├── team_mapping_validation.md
     ├── simulation_summary.csv
     └── champion_probabilities.csv
 ```
@@ -172,6 +192,12 @@ print('team_name_mapping.csv is readable')
 PY
 ```
 
+Team mapping validation:
+
+```bash
+python src/data/validate_team_mapping.py
+```
+
 Before returning to MVP work, rebuild the default Korea files:
 
 ```bash
@@ -206,6 +232,6 @@ python src/features/make_features.py --target-scope korea
 
 1. Run MVP verification commands.
 2. Run global expansion feature check.
-3. Validate `team_name_mapping.csv` against real raw data.
-4. Replace tournament skeleton files with official data only after source verification.
-5. Design `validate_team_mapping.py` for Phase 1 data-quality validation.
+3. Run `python src/data/validate_team_mapping.py` after adding real raw match CSV files.
+4. Update `team_name_mapping.csv` from `reports/unmapped_teams.csv`.
+5. Replace tournament skeleton files with official data only after source verification.
