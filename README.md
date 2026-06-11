@@ -60,6 +60,7 @@ Key changes:
 - `src/data/build_dataset.py` supports `filter_korea=True` by default for the MVP and `filter_korea=False` for global data expansion.
 - `src/features/make_features.py` supports `--target-scope korea` for the MVP and `--target-scope home` for global expansion feature generation.
 - MVP and global processed outputs are separated by default to reduce accidental overwrites.
+- `src/models/train_baseline.py` supports `--features-path`, `--run-name`, `--model-path`, and `--metrics-path` so MVP and global baseline artifacts can be separated.
 - `data/mappings/team_name_mapping.csv` provides an initial country alias mapping draft.
 - `src/data/validate_team_mapping.py` validates raw team names against the mapping table.
 - `data/tournament/participants.json`, `schedule.json`, and `bracket.json` provide skeleton interfaces for future simulation work.
@@ -79,14 +80,14 @@ These files are committed because they are source data skeletons and interface d
 
 The tournament JSON files are not official FIFA data. Values marked `TBD` must be replaced only after official source verification.
 
-## Generated Processed File Paths
+## Generated File Paths
 
-| Scope | Match file | Feature file |
-| --- | --- | --- |
-| Korea MVP | `data/processed/matches.csv` | `data/processed/features.csv` |
-| Global expansion | `data/processed/matches_global.csv` | `data/processed/features_global.csv` |
+| Scope | Match file | Feature file | Model file | Metrics file |
+| --- | --- | --- | --- | --- |
+| Korea MVP | `data/processed/matches.csv` | `data/processed/features.csv` | `models/baseline_model.pkl` | `reports/baseline_metrics.csv` |
+| Global baseline | `data/processed/matches_global.csv` | `data/processed/features_global.csv` | `models/global_baseline_model.pkl` | `reports/global_baseline_metrics.csv` |
 
-`train_baseline.py` still reads the default MVP feature file. Global model training should be added in a later step with `--features-path` or `--run-name` so global artifacts do not overwrite MVP artifacts.
+Global baseline training is not calibration or simulation yet. It only confirms that `features_global.csv` can be trained with the same baseline modeling workflow without overwriting MVP artifacts.
 
 ## Stack
 
@@ -102,80 +103,64 @@ Research & MVP Phase with documented expansion path.
 
 ## MVP Data Flow
 
-Generated report files are intentionally not committed. Running the pipeline recreates `reports/data_quality_summary.md`, `reports/baseline_metrics.csv`, `reports/prediction_table.csv`, `reports/model_evaluation.md`, and `reports/smoke_test_report.md` from the current code, data, and model artifacts. Treat those files as local evidence for the current run rather than authoritative checked-in model results.
+Generated report files are intentionally not committed. Running the pipeline recreates reports and model artifacts from the current code, data, and model run. Treat those files as local evidence for the current run rather than authoritative checked-in model results.
 
 The implemented MVP pipeline has five explicit stages:
 
 1. `src/data/build_dataset.py` standardizes international match-result data and writes `data/processed/matches.csv`.
-   - If no compatible raw CSV exists in `data/raw/`, it creates a built-in demo dataset.
-   - The demo dataset has 15 labeled rows and three target classes so baseline training can run locally.
-   - By default, full international raw datasets are filtered to rows where Korea Republic is either `home_team` or `away_team`.
-   - For expansion, run with `--global-scope` or call `build_dataset(filter_korea=False)` to keep all compatible international rows and write `data/processed/matches_global.csv` by default.
+   - For expansion, run with `--global-scope` to write `data/processed/matches_global.csv` by default.
    - Custom output is available with `--output-path`.
-   - `target_result` is the score-derived home-team perspective label.
-   - `target_result_korea_perspective` is the MVP label for Korea Republic matches. It matches `target_result` when Korea Republic is the home team, reverses home `Win`/`Loss` when Korea Republic is the away team, and keeps `Draw` unchanged.
-   - `reports/data_quality_summary.md` is generated with row count, missing counts, and target distribution for a quick sanity check.
-2. `src/features/make_features.py` converts processed match rows into model-ready pre-match features and writes `data/processed/features.csv` for MVP or `data/processed/features_global.csv` for global expansion.
-   - Default execution uses `--target-scope korea`, which preserves the Korea MVP target behavior.
-   - Global expansion feature generation uses `--target-scope home`, which copies the home-team perspective `matches.csv.target_result` into the output `target_result` column.
+2. `src/features/make_features.py` converts processed match rows into model-ready pre-match features.
+   - MVP output: `data/processed/features.csv`.
+   - Global output: `data/processed/features_global.csv`.
    - Custom input and output paths are available with `--input-path` and `--output-path`.
-   - Final scores are used only to create result labels.
-   - Score/result leakage columns are not included as model features.
 3. `src/models/train_baseline.py` validates the feature table before model fitting.
-   - Supported target column: `target_result`.
-   - Minimum requirements: at least two target classes, at least one non-empty usable feature column, at least two rows per class, and enough rows for the configured train/test split.
-   - Baseline metrics are recorded for two explicit feature sets: `ranking_context_only` excludes `home_team` and `away_team`, while `with_team_identifiers` keeps those team-name identifiers for comparison.
+   - MVP default input: `data/processed/features.csv`.
+   - Global input can be selected with `--features-path data/processed/features_global.csv`.
+   - `--run-name global_baseline` writes `models/global_baseline_model.pkl` and `reports/global_baseline_metrics.csv`.
    - Implemented metrics include Accuracy, Macro F1, Log Loss, and one-vs-rest multiclass Brier Score.
+4. `src/models/predict.py` generates the required MVP prediction table.
+5. `src/models/evaluate.py` evaluates the MVP baseline outputs.
 
 ## Project Structure
 
 ```text
 .
 ├── app/
-│   └── streamlit_app.py              # Streamlit MVP application entry point
+│   └── streamlit_app.py
 ├── data/
-│   ├── interim/                      # Intermediate cleaned data files
-│   │   └── .gitkeep
-│   ├── mappings/                     # Team name / FIFA code mapping files
-│   │   ├── .gitkeep
+│   ├── mappings/
 │   │   └── team_name_mapping.csv
-│   ├── processed/                    # Model-ready datasets
+│   ├── processed/
 │   │   └── .gitkeep
-│   ├── raw/                          # Original downloaded datasets
+│   ├── raw/
 │   │   └── .gitkeep
-│   └── tournament/                   # Participants, schedule, and bracket inputs
-│       ├── .gitkeep
+│   └── tournament/
 │       ├── bracket.json
 │       ├── participants.json
 │       └── schedule.json
 ├── docs/
-│   └── expansion_strategy.md         # Global expansion roadmap
-├── models/                           # Saved baseline model artifacts
+│   └── expansion_strategy.md
+├── models/
 │   └── .gitkeep
-├── notebooks/
-│   ├── 01_data_quality_check.ipynb
-│   ├── 02_feature_engineering.ipynb
-│   └── 03_baseline_modeling.ipynb
-├── reports/                          # Runtime-generated reports; only .gitkeep is tracked
+├── reports/
 │   └── .gitkeep
 ├── scripts/
-│   └── smoke_test.sh                 # Main-branch smoke test wrapper
+│   └── smoke_test.sh
 ├── src/
 │   ├── data/
-│   │   ├── build_dataset.py          # Dataset assembly and scope filtering
+│   │   ├── build_dataset.py
 │   │   ├── clean_data.py
 │   │   ├── load_data.py
-│   │   └── validate_team_mapping.py  # Raw team-name mapping validation
+│   │   └── validate_team_mapping.py
 │   ├── features/
-│   │   └── make_features.py          # Feature engineering with target scope support
+│   │   └── make_features.py
 │   ├── models/
 │   │   ├── evaluate.py
 │   │   ├── predict.py
 │   │   └── train_baseline.py
-│   ├── simulation/                   # Tournament simulation expansion code
-│   │   └── .gitkeep
-│   └── utils/
-│       └── config.py
+│   └── simulation/
+│       └── .gitkeep
 ├── PROJECT_SPEC.md
 ├── README.md
 ├── requirements.txt
@@ -198,14 +183,6 @@ The implemented MVP pipeline has five explicit stages:
    ```
 
 3. Add raw datasets to `data/raw/` when available.
-
-   Expected MVP data sources:
-
-   - International Football Results
-   - FIFA Rankings
-   - FIFA World Cup Data
-
-   If no compatible raw CSV is present, the MVP uses a small built-in demo dataset for local pipeline testing.
 
 4. Build the processed match dataset.
 
@@ -255,11 +232,30 @@ The implemented MVP pipeline has five explicit stages:
 
 6. Train baseline models.
 
+   MVP baseline:
+
    ```bash
    python src/models/train_baseline.py
    ```
 
-7. Generate the required prediction table.
+   Global baseline:
+
+   ```bash
+   python src/models/train_baseline.py \
+     --features-path data/processed/features_global.csv \
+     --run-name global_baseline
+   ```
+
+   Custom model and metrics paths:
+
+   ```bash
+   python src/models/train_baseline.py \
+     --features-path data/processed/features_global.csv \
+     --model-path models/custom_global_model.pkl \
+     --metrics-path reports/custom_global_metrics.csv
+   ```
+
+7. Generate the required MVP prediction table.
 
    ```bash
    python src/models/predict.py
@@ -277,13 +273,14 @@ The implemented MVP pipeline has five explicit stages:
    streamlit run app/streamlit_app.py
    ```
 
-## Expansion Feature Check
-
-The first global expansion check stops at feature generation. It confirms that the global data path can create `matches_global.csv` and that the home-team target can be copied safely into `features_global.csv`.
+## Expansion Baseline Check
 
 ```bash
 python src/data/build_dataset.py --global-scope
 python src/features/make_features.py --target-scope home
+python src/models/train_baseline.py \
+  --features-path data/processed/features_global.csv \
+  --run-name global_baseline
 ```
 
 File existence check:
@@ -293,10 +290,10 @@ python - <<'PY'
 from pathlib import Path
 
 paths = [
-    "data/processed/matches.csv",
-    "data/processed/features.csv",
-    "data/processed/matches_global.csv",
-    "data/processed/features_global.csv",
+    "models/baseline_model.pkl",
+    "reports/baseline_metrics.csv",
+    "models/global_baseline_model.pkl",
+    "reports/global_baseline_metrics.csv",
 ]
 
 for path in paths:
@@ -337,14 +334,16 @@ These reports are local validation outputs and are not committed by default.
 
 ### Generated artifact policy
 
-Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, the manual MVP pipeline commands, or `src/data/validate_team_mapping.py` can refresh local generated artifacts. These files are reproducible outputs from the current code, data, and model run, so they are generally not committed:
+Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, the manual MVP pipeline commands, global baseline commands, or `src/data/validate_team_mapping.py` can refresh local generated artifacts. These files are reproducible outputs from the current code, data, and model run, so they are generally not committed:
 
 - `data/processed/matches.csv`
 - `data/processed/features.csv`
 - `data/processed/matches_global.csv`
 - `data/processed/features_global.csv`
 - `models/baseline_model.pkl`
+- `models/global_baseline_model.pkl`
 - `reports/baseline_metrics.csv`
+- `reports/global_baseline_metrics.csv`
 - `reports/prediction_table.csv`
 - `reports/model_evaluation.md`
 - `reports/smoke_test_report.md`
@@ -386,6 +385,7 @@ Run the MVP pipeline in order:
 - Team name mapping table
 - 2026 tournament input tables
 - Team mapping validation report
+- Global baseline metrics
 - Calibrated prediction table
 - Simulation summary
 - Champion probabilities
