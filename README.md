@@ -61,6 +61,7 @@ Key changes:
 - `src/features/make_features.py` supports `--target-scope korea` for the MVP and `--target-scope home` for global expansion feature generation.
 - MVP and global processed outputs are separated by default to reduce accidental overwrites.
 - `src/data/validate_preprocessing.py` is the required preprocessing gate before model training, calibration, or simulation.
+- `scripts/validate_preprocessing_pipeline.sh` runs the complete preprocessing build and validation gate in one command.
 - `src/models/train_baseline.py` supports `--features-path`, `--run-name`, `--model-path`, and `--metrics-path` so MVP and global baseline artifacts can be separated.
 - `src/models/calibrate.py` calibrates baseline probabilities and writes calibration metrics, curve data, and summary reports.
 - `data/mappings/team_name_mapping.csv` provides an initial country alias mapping draft.
@@ -68,6 +69,7 @@ Key changes:
 - `data/tournament/participants.json`, `schedule.json`, and `bracket.json` provide skeleton interfaces for future simulation work.
 - `src/simulation/` is reserved for tournament simulation code.
 - `docs/preprocessing_gate.md` documents the preprocessing PASS/FAIL rule.
+- `docs/preprocessing_runbook.md` provides a PC/Codespaces execution checklist.
 - `docs/expansion_strategy.md` records the expansion roadmap and team decision points.
 
 ## Phase 1 Data Files
@@ -154,13 +156,15 @@ The implemented MVP pipeline has seven explicit stages:
 │   ├── calibration_workflow.md
 │   ├── expansion_strategy.md
 │   ├── preprocessing_gate.md
+│   ├── preprocessing_runbook.md
 │   └── simulation_contract.md
 ├── models/
 │   └── .gitkeep
 ├── reports/
 │   └── .gitkeep
 ├── scripts/
-│   └── smoke_test.sh
+│   ├── smoke_test.sh
+│   └── validate_preprocessing_pipeline.sh
 ├── src/
 │   ├── data/
 │   │   ├── build_dataset.py
@@ -237,6 +241,14 @@ The implemented MVP pipeline has seven explicit stages:
 
 6. Run the preprocessing validation gate.
 
+   One-command PC/Codespaces path:
+
+   ```bash
+   bash scripts/validate_preprocessing_pipeline.sh
+   ```
+
+   Manual path:
+
    ```bash
    python src/data/validate_team_mapping.py
    python src/data/validate_preprocessing.py --scope both
@@ -303,7 +315,15 @@ The implemented MVP pipeline has seven explicit stages:
 
 ## Preprocessing Validation Gate
 
-Run this gate after data build and feature generation, and before any model training, calibration, or simulation:
+Run this gate after data build and feature generation, and before any model training, calibration, or simulation.
+
+Recommended one-command path:
+
+```bash
+bash scripts/validate_preprocessing_pipeline.sh
+```
+
+Manual validation-only path:
 
 ```bash
 python src/data/validate_preprocessing.py --scope both
@@ -398,7 +418,7 @@ These reports are local validation outputs and are not committed by default.
 
 ### Generated artifact policy
 
-Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, the manual MVP pipeline commands, global baseline commands, calibration commands, `src/data/validate_team_mapping.py`, or `src/data/validate_preprocessing.py` can refresh local generated artifacts. These files are reproducible outputs from the current code, data, and model run, so they are generally not committed:
+Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, `scripts/validate_preprocessing_pipeline.sh`, the manual MVP pipeline commands, global baseline commands, calibration commands, `src/data/validate_team_mapping.py`, or `src/data/validate_preprocessing.py` can refresh local generated artifacts. These files are reproducible outputs from the current code, data, and model run, so they are generally not committed:
 
 - `data/processed/matches.csv`
 - `data/processed/features.csv`
@@ -444,6 +464,12 @@ Run the MVP preprocessing gate and pipeline in order:
 4. `python src/models/train_baseline.py`
 5. `python src/models/predict.py`
 6. `python src/models/evaluate.py`
+
+For the full MVP + global preprocessing gate, run:
+
+```bash
+bash scripts/validate_preprocessing_pipeline.sh
+```
 
 ## MVP Deliverables
 
