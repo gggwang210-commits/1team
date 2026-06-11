@@ -25,7 +25,7 @@ The immediate goal is not to replace the working MVP. The goal is to preserve th
 
 ## Target Scope, File, and Artifact Strategy
 
-The project separates dataset scope, target scope, generated processed files, and model artifacts so MVP and global expansion runs do not overwrite each other by default.
+The project separates dataset scope, target scope, generated processed files, model artifacts, and calibration artifacts so MVP and global expansion runs do not overwrite each other by default.
 
 | Step | MVP mode | Global baseline mode |
 | --- | --- | --- |
@@ -39,9 +39,13 @@ The project separates dataset scope, target scope, generated processed files, an
 | Baseline training command | `python src/models/train_baseline.py` | `python src/models/train_baseline.py --features-path data/processed/features_global.csv --run-name global_baseline` |
 | Model artifact | `models/baseline_model.pkl` | `models/global_baseline_model.pkl` |
 | Metrics artifact | `reports/baseline_metrics.csv` | `reports/global_baseline_metrics.csv` |
-| Calibration implementation prompt | `docs/calibration_workflow.md` | `docs/calibration_workflow.md` |
+| Calibration command | `python src/models/calibrate.py` | `python src/models/calibrate.py --features-path data/processed/features_global.csv --model-path models/global_baseline_model.pkl --run-name global_baseline` |
+| Calibrated model artifact | `models/calibrated_model.pkl` | `models/global_baseline_calibrated_model.pkl` |
+| Calibration report | `reports/calibration_report/` | `reports/global_baseline_calibration_report/` |
 
 This separation prevents the global dataset from depending on Korea-only labels. In global mode, `target_result_korea_perspective` may be missing for non-Korea matches; that is expected and allowed. The global feature path uses the home-team perspective target instead.
+
+Calibration is a probability-quality check before simulation. It is not a claim that accuracy improves. Lower Log Loss and lower Brier Score are better.
 
 ## Phase 1 Data Skeleton Files
 
@@ -106,29 +110,36 @@ Priority tasks:
 3. Compare MVP metrics and global metrics at a high level, while remembering they are trained on different scopes.
 4. Compare `ranking_context_only` against `with_team_identifiers`.
 5. Document team-name memorization risk.
-6. Use `docs/calibration_workflow.md` as the implementation prompt for probability calibration.
-7. Add probability calibration using Platt Scaling or Isotonic Regression.
-8. Compare calibrated and uncalibrated Log Loss and Brier Score.
+6. Run probability calibration with `src/models/calibrate.py` for MVP and global baseline paths.
+7. Compare uncalibrated vs calibrated Log Loss and Brier Score.
+8. Review calibration curve CSV output before using model probabilities in simulation.
 
 Expected outputs:
 
 - `models/baseline_model.pkl`
 - `models/global_baseline_model.pkl`
+- `models/calibrated_model.pkl`
+- `models/global_baseline_calibrated_model.pkl`
 - `reports/baseline_metrics.csv`
 - `reports/global_baseline_metrics.csv`
-- `docs/calibration_workflow.md`
-- `reports/calibration_report/`
+- `reports/calibration_report/calibration_metrics.csv`
+- `reports/calibration_report/calibration_curve.csv`
+- `reports/calibration_report/summary.md`
+- `reports/global_baseline_calibration_report/calibration_metrics.csv`
+- `reports/global_baseline_calibration_report/calibration_curve.csv`
+- `reports/global_baseline_calibration_report/summary.md`
 - `reports/prediction_table.csv`
 
 ## Phase 3: Simulation and Service
 
 Priority tasks:
 
-1. Implement group-stage simulation.
-2. Implement knockout simulation.
-3. Fix random seed for reproducibility.
-4. Generate round advancement and champion probability outputs.
-5. Decide whether Django can be completed within the remaining schedule.
+1. Design `src/simulation/run_tournament.py` around calibrated match probabilities.
+2. Implement group-stage simulation.
+3. Implement knockout simulation.
+4. Fix random seed for reproducibility.
+5. Generate round advancement and champion probability outputs.
+6. Decide whether Django can be completed within the remaining schedule.
 
 Expected outputs:
 
@@ -162,8 +173,8 @@ Expected outputs:
 │   ├── features/
 │   │   └── make_features.py
 │   ├── models/
-│   │   ├── train_baseline.py
 │   │   ├── calibrate.py
+│   │   ├── train_baseline.py
 │   │   └── predict.py
 │   └── simulation/
 │       └── run_tournament.py
@@ -176,6 +187,7 @@ Expected outputs:
     ├── baseline_metrics.csv
     ├── global_baseline_metrics.csv
     ├── calibration_report/
+    ├── global_baseline_calibration_report/
     ├── prediction_table.csv
     ├── unmapped_teams.csv
     ├── team_mapping_validation.md
@@ -195,50 +207,45 @@ python src/models/predict.py
 python src/models/evaluate.py
 ```
 
-Global baseline check:
+MVP calibration check:
+
+```bash
+python src/data/build_dataset.py
+python src/features/make_features.py --target-scope korea
+python src/models/train_baseline.py
+python src/models/calibrate.py
+```
+
+Global calibration check:
 
 ```bash
 python src/data/build_dataset.py --global-scope
 python src/features/make_features.py --target-scope home
 python src/models/train_baseline.py --features-path data/processed/features_global.csv --run-name global_baseline
+python src/models/calibrate.py --features-path data/processed/features_global.csv --model-path models/global_baseline_model.pkl --run-name global_baseline
 ```
 
-Calibration workflow prompt check:
-
-```bash
-python - <<'PY'
-from pathlib import Path
-path = Path('docs/calibration_workflow.md')
-print(path, 'OK' if path.exists() else 'MISSING')
-PY
-```
-
-Model artifact existence check:
+Calibration artifact existence check:
 
 ```bash
 python - <<'PY'
 from pathlib import Path
 
 paths = [
-    "models/baseline_model.pkl",
-    "reports/baseline_metrics.csv",
-    "models/global_baseline_model.pkl",
-    "reports/global_baseline_metrics.csv",
+    "models/calibrated_model.pkl",
+    "reports/calibration_report/calibration_metrics.csv",
+    "reports/calibration_report/calibration_curve.csv",
+    "reports/calibration_report/summary.md",
+    "models/global_baseline_calibrated_model.pkl",
+    "reports/global_baseline_calibration_report/calibration_metrics.csv",
+    "reports/global_baseline_calibration_report/calibration_curve.csv",
+    "reports/global_baseline_calibration_report/summary.md",
 ]
 
 for path in paths:
     p = Path(path)
     print(path, "OK" if p.exists() else "MISSING")
 PY
-```
-
-Custom baseline output example:
-
-```bash
-python src/models/train_baseline.py \
-  --features-path data/processed/features_global.csv \
-  --model-path models/custom_global_model.pkl \
-  --metrics-path reports/custom_global_metrics.csv
 ```
 
 Data skeleton syntax check:
@@ -269,8 +276,9 @@ python src/data/validate_team_mapping.py
 | Official vs skeleton data confusion | High | Keep `SKELETON_NOT_OFFICIAL`, `source_note`, and `TBD` values until verified |
 | Generated file overwrite between MVP/global modes | Lower after Phase 1-5 | MVP and global processed outputs use separate default paths |
 | Global model artifact overwrite | Lower after Phase 2-1 | `--features-path`, `--run-name`, `--model-path`, and `--metrics-path` separate artifacts |
-| Calibration code implementation blocked or delayed | Medium | Keep `docs/calibration_workflow.md` as a reviewed implementation prompt and add code in a separate small PR |
-| Probability calibration quality | High | Use calibration curves and Brier Score comparison |
+| Calibration artifact overwrite | Lower after Phase 2-2 | MVP and global calibration outputs use separate default paths |
+| Probability calibration overfitting | Medium | Prefer sigmoid for small data; use isotonic only with enough data and compare curves |
+| Probability calibration quality | High | Use calibration curves and Brier Score comparison before simulation |
 | Knockout draw handling | Medium | Make draw-to-winner assumption explicit |
 | Tournament schedule changes | Medium | Record data version and reference date |
 | Django schedule pressure | Medium | Keep Streamlit MVP stable and treat Django as Go/No-Go |
@@ -287,9 +295,9 @@ python src/data/validate_team_mapping.py
 
 ## Next Actions
 
-1. Review `docs/calibration_workflow.md` with the team.
-2. Add `src/models/calibrate.py` in a small dedicated code change.
-3. Run MVP calibration verification.
-4. Run global calibration verification.
-5. Compare uncalibrated vs calibrated Log Loss and Brier Score.
-6. Use calibration results to design `src/simulation/run_tournament.py`.
+1. Run MVP calibration verification.
+2. Run global calibration verification.
+3. Compare uncalibrated vs calibrated Log Loss and Brier Score.
+4. Review `calibration_curve.csv` for probability overconfidence or underconfidence.
+5. Design `src/simulation/run_tournament.py` input/output contract.
+6. Keep official 2026 participant and schedule values as `TBD` until source verification.
