@@ -1,12 +1,14 @@
-"""Phase 3-6 tournament simulation CLI scaffold with match probabilities.
+"""Phase 3-7 tournament simulation CLI scaffold with match probability CSV output.
 
 This scaffold intentionally does not run tournament simulation yet.
 It validates input paths, parses tournament JSON files, checks minimal schema
 contracts, warns about skeleton/TBD values, loads generated probability inputs,
-assembles scheduled feature rows when possible, and creates an in-memory match
-probability table with model.predict_proba().
+assembles scheduled feature rows when possible, creates an in-memory match
+probability table with model.predict_proba(), and saves that table as a local
+generated CSV when rows are available.
 
-No simulation reports are generated in this phase.
+No group-stage, knockout, Monte Carlo, or champion-probability simulation is
+executed in this phase.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ DEFAULT_FEATURES_PATH = PROJECT_ROOT / "data" / "processed" / "features_global.c
 DEFAULT_MODEL_PATH = PROJECT_ROOT / "models" / "global_baseline_calibrated_model.pkl"
 DEFAULT_REPORTS_DIR = PROJECT_ROOT / "reports"
 DEFAULT_OUTPUT_DIR = DEFAULT_REPORTS_DIR / "simulation_global"
+DEFAULT_MATCH_PROBABILITIES_FILENAME = "match_probabilities.csv"
 SKELETON_STATUS = "SKELETON_NOT_OFFICIAL"
 TBD_VALUE = "TBD"
 TARGET_AND_AUDIT_COLUMNS = {
@@ -67,9 +70,17 @@ def load_json_file(path: Path, label: str) -> dict:
 
 
 def resolve_output_dir(run_name: str, output_dir: Path | None) -> Path:
-    """Resolve output directory without creating generated simulation files yet."""
+    """Resolve output directory for generated simulation-stage files."""
     safe_run_name = validate_run_name(run_name)
     return output_dir or DEFAULT_REPORTS_DIR / safe_run_name
+
+
+def resolve_match_probabilities_path(
+    output_dir: Path,
+    match_probabilities_path: Path | None,
+) -> Path:
+    """Resolve where the generated match probability table should be written."""
+    return match_probabilities_path or output_dir / DEFAULT_MATCH_PROBABILITIES_FILENAME
 
 
 def summarize_json(label: str, data: dict) -> str:
@@ -443,6 +454,21 @@ def build_match_probability_table(
     return pd.DataFrame(rows), warnings
 
 
+def save_match_probabilities(
+    match_probability_table: pd.DataFrame,
+    output_path: Path,
+) -> tuple[Path | None, list[str]]:
+    """Save match probabilities as a generated CSV when rows are available."""
+    warnings: list[str] = []
+    if match_probability_table.empty:
+        warnings.append("Match probability table is empty, so no CSV was saved.")
+        return None, warnings
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    match_probability_table.to_csv(output_path, index=False)
+    return output_path, warnings
+
+
 def parse_args() -> argparse.Namespace:
     """Parse CLI options for the future tournament simulation workflow."""
     parser = argparse.ArgumentParser(
@@ -487,7 +513,13 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=None,
-        help="Optional output directory for future generated simulation reports.",
+        help="Optional output directory for generated simulation-stage files.",
+    )
+    parser.add_argument(
+        "--match-probabilities-path",
+        type=Path,
+        default=None,
+        help="Optional explicit output path for generated match_probabilities.csv.",
     )
     parser.add_argument(
         "--n-simulations",
@@ -516,6 +548,10 @@ def main() -> None:
     """Validate inputs and print the future simulation contract."""
     args = parse_args()
     output_dir = resolve_output_dir(args.run_name, args.output_dir)
+    match_probabilities_path = resolve_match_probabilities_path(
+        output_dir=output_dir,
+        match_probabilities_path=args.match_probabilities_path,
+    )
 
     participants = load_json_file(args.participants_path, "participants")
     schedule = load_json_file(args.schedule_path, "schedule")
@@ -544,9 +580,14 @@ def main() -> None:
         feature_metadata=feature_metadata,
         class_labels=class_labels,
     )
+    saved_match_probabilities_path, save_warnings = save_match_probabilities(
+        match_probability_table=match_probability_table,
+        output_path=match_probabilities_path,
+    )
     warnings.extend(candidate_warnings)
     warnings.extend(assembly_warnings)
     warnings.extend(probability_warnings)
+    warnings.extend(save_warnings)
 
     if args.n_simulations <= 0:
         raise ValueError("--n-simulations must be greater than 0.")
@@ -556,7 +597,8 @@ def main() -> None:
     print("Scheduled-match probability scaffold complete.")
     print("Scheduled-match feature row assembly scaffold complete.")
     print("Match probability table scaffold complete.")
-    print("No simulation was executed and no report files were generated.")
+    print("Match probability CSV output step complete.")
+    print("No simulation was executed and no simulation report files were generated.")
     print(f"participants_path: {args.participants_path}")
     print(f"schedule_path: {args.schedule_path}")
     print(f"bracket_path: {args.bracket_path}")
@@ -573,6 +615,10 @@ def main() -> None:
     print(f"assembled_feature_row_count: {len(feature_frame)}")
     print(f"unassembled_candidate_count: {len(candidates) - len(feature_frame)}")
     print(f"match_probability_row_count: {len(match_probability_table)}")
+    print(f"match_probabilities_path: {match_probabilities_path}")
+    print(f"match_probabilities_saved: {saved_match_probabilities_path is not None}")
+    if saved_match_probabilities_path is not None:
+        print(f"saved_match_probabilities_path: {saved_match_probabilities_path}")
     print(f"run_name: {validate_run_name(args.run_name)}")
     print(f"output_dir: {output_dir}")
     print(f"n_simulations: {args.n_simulations}")
@@ -595,7 +641,7 @@ def main() -> None:
         print("Warnings:")
         for warning in warnings:
             print(f"- {warning}")
-    print("Next step: save match probabilities to a generated CSV before simulation.")
+    print("Next step: use match_probabilities.csv as input for group-stage simulation scaffold.")
 
 
 if __name__ == "__main__":
