@@ -8,30 +8,36 @@ cd "${PROJECT_ROOT}"
 
 echo "Preprocessing validation pipeline started."
 echo "Project root: ${PROJECT_ROOT}"
+echo "No source validation PASS, no preprocessing."
+
 
 echo "Python environment:"
 python --version
 
-echo "[1/6] Building Korea MVP processed match dataset..."
+echo "[1/7] Validating raw data sources..."
+python src/data/validate_sources.py
+
+echo "[2/7] Building Korea filtered processed match dataset..."
 python src/data/build_dataset.py
 
-echo "[2/6] Building Korea MVP model-ready features..."
+echo "[3/7] Building Korea filtered model-ready features..."
 python src/features/make_features.py --target-scope korea
 
-echo "[3/6] Building global processed match dataset..."
+echo "[4/7] Building global processed match dataset..."
 python src/data/build_dataset.py --global-scope
 
-echo "[4/6] Building global model-ready features..."
+echo "[5/7] Building global model-ready features..."
 python src/features/make_features.py --target-scope home
 
-echo "[5/6] Validating team-name mapping..."
+echo "[6/7] Validating team-name mapping..."
 python src/data/validate_team_mapping.py
 
-echo "[6/6] Running preprocessing validation gate..."
+echo "[7/7] Running preprocessing validation gate..."
 python src/data/validate_preprocessing.py --scope both
 
 echo "Preprocessing validation pipeline passed."
 echo "Generated validation reports:"
+echo "- Source validation: console output only in the current minimal version"
 echo "- reports/preprocessing_validation.md"
 echo "- reports/preprocessing_validation.csv"
 echo "- reports/team_mapping_validation.md"
