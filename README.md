@@ -60,6 +60,7 @@ Key changes:
 - `src/data/build_dataset.py` supports `filter_korea=True` by default for the MVP and `filter_korea=False` for global data expansion.
 - `src/features/make_features.py` supports `--target-scope korea` for the MVP and `--target-scope home` for global expansion feature generation.
 - `data/mappings/team_name_mapping.csv` provides an initial country alias mapping draft.
+- `src/data/validate_team_mapping.py` validates raw team names against the mapping table.
 - `data/tournament/participants.json`, `schedule.json`, and `bracket.json` provide skeleton interfaces for future simulation work.
 - `src/simulation/` is reserved for tournament simulation code.
 - `docs/expansion_strategy.md` records the expansion roadmap and team decision points.
@@ -151,7 +152,8 @@ The implemented MVP pipeline has five explicit stages:
 │   ├── data/
 │   │   ├── build_dataset.py          # Dataset assembly and scope filtering
 │   │   ├── clean_data.py
-│   │   └── load_data.py
+│   │   ├── load_data.py
+│   │   └── validate_team_mapping.py  # Raw team-name mapping validation
 │   ├── features/
 │   │   └── make_features.py          # Feature engineering with target scope support
 │   ├── models/
@@ -278,11 +280,26 @@ print('team_name_mapping.csv is readable')
 PY
 ```
 
+## Team Mapping Validation
+
+Run this after adding real raw match CSV files to `data/raw/`:
+
+```bash
+python src/data/validate_team_mapping.py
+```
+
+This creates generated data-quality reports:
+
+- `reports/unmapped_teams.csv`
+- `reports/team_mapping_validation.md`
+
+These reports are local validation outputs and are not committed by default.
+
 ## CI and Local Smoke Test
 
 ### Generated artifact policy
 
-Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, or the manual MVP pipeline commands can refresh local generated artifacts. These files are reproducible outputs from the current code, data, and model run, so they are generally not committed:
+Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, the manual MVP pipeline commands, or `src/data/validate_team_mapping.py` can refresh local generated artifacts. These files are reproducible outputs from the current code, data, and model run, so they are generally not committed:
 
 - `data/processed/matches.csv`
 - `data/processed/features.csv`
@@ -291,6 +308,8 @@ Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, or the manual MVP p
 - `reports/prediction_table.csv`
 - `reports/model_evaluation.md`
 - `reports/smoke_test_report.md`
+- `reports/unmapped_teams.csv`
+- `reports/team_mapping_validation.md`
 
 The `.gitkeep` files are placeholders that keep otherwise-empty directories in Git. By default, pull requests should include only source code, scripts, and README/documentation changes unless a reviewer explicitly asks for generated artifacts.
 
@@ -326,6 +345,7 @@ Run the MVP pipeline in order:
 
 - Team name mapping table
 - 2026 tournament input tables
+- Team mapping validation report
 - Calibrated prediction table
 - Simulation summary
 - Champion probabilities
