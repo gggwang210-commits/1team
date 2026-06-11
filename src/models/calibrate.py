@@ -3,15 +3,18 @@
 This file starts with a safe minimum implementation:
 - define CLI options
 - resolve MVP/global-style output paths
-- print selected input and output paths
+- load the selected baseline model
+- confirm the model supports predict_proba
 
-Later steps will add model loading, CalibratedClassifierCV, and report outputs.
+Later steps will add CalibratedClassifierCV and report outputs.
 """
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
+
+import joblib
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FEATURES_PATH = PROJECT_ROOT / "data" / "processed" / "features.csv"
@@ -51,6 +54,23 @@ def resolve_outputs(
         calibrated_model_path or DEFAULT_CALIBRATED_MODEL_PATH,
         report_dir or DEFAULT_REPORT_DIR,
     )
+
+
+def load_baseline_model(model_path: Path):
+    """Load the selected baseline model and validate probability support."""
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"Baseline model not found: {model_path}. "
+            "Run src/models/train_baseline.py first."
+        )
+
+    model = joblib.load(model_path)
+    if not hasattr(model, "predict_proba"):
+        raise TypeError(
+            f"Loaded model from {model_path} does not support predict_proba(). "
+            "Probability calibration requires a probability-capable classifier."
+        )
+    return model
 
 
 def parse_args() -> argparse.Namespace:
@@ -113,15 +133,18 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
-    """Print the selected calibration inputs and outputs."""
+    """Print the selected calibration inputs and load the baseline model."""
     args = parse_args()
     calibrated_model_path, report_dir = resolve_outputs(
         run_name=args.run_name,
         calibrated_model_path=args.calibrated_model_path,
         report_dir=args.report_dir,
     )
+    model = load_baseline_model(args.model_path)
 
     print("Calibration CLI scaffold ready.")
+    print("Baseline model loaded successfully.")
+    print(f"model_type: {type(model).__name__}")
     print(f"features_path: {args.features_path}")
     print(f"model_path: {args.model_path}")
     print(f"calibrated_model_path: {calibrated_model_path}")
