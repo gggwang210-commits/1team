@@ -1,12 +1,12 @@
-"""Phase 3-5 tournament simulation CLI scaffold with feature-row assembly.
+"""Phase 3-6 tournament simulation CLI scaffold with match probabilities.
 
 This scaffold intentionally does not run tournament simulation yet.
 It validates input paths, parses tournament JSON files, checks minimal schema
 contracts, warns about skeleton/TBD values, loads generated probability inputs,
-prints scheduled-match probability candidate information, and assembles candidate
-feature rows when matching historical/global feature rows are available.
+assembles scheduled feature rows when possible, and creates an in-memory match
+probability table with model.predict_proba().
 
-No model.predict_proba call and no simulation reports are generated in this phase.
+No simulation reports are generated in this phase.
 """
 
 from __future__ import annotations
@@ -282,7 +282,7 @@ def model_class_labels(model) -> list[str]:
 
 
 def probability_column_names(class_labels: list[str]) -> list[str]:
-    """Return future probability output column names based on model class labels."""
+    """Return probability output column names based on model class labels."""
     return [f"prob_{label}" for label in class_labels]
 
 
@@ -400,6 +400,49 @@ def assemble_scheduled_feature_rows(
     return pd.DataFrame(assembled_rows, columns=feature_columns), metadata_rows, warnings
 
 
+def build_match_probability_table(
+    model,
+    feature_frame: pd.DataFrame,
+    feature_metadata: list[dict[str, Any]],
+    class_labels: list[str],
+) -> tuple[pd.DataFrame, list[str]]:
+    """Create an in-memory match probability table with model.predict_proba()."""
+    warnings: list[str] = []
+    probability_columns = probability_column_names(class_labels)
+
+    if model is None:
+        warnings.append("No probability model was loaded, so match probabilities were not generated.")
+        return pd.DataFrame(columns=["match_id", "home_team", "away_team", *probability_columns]), warnings
+    if feature_frame.empty:
+        warnings.append("No assembled feature rows are available for model.predict_proba().")
+        return pd.DataFrame(columns=["match_id", "home_team", "away_team", *probability_columns]), warnings
+    if len(feature_metadata) != len(feature_frame):
+        raise ValueError(
+            "Feature metadata row count does not match assembled feature row count: "
+            f"metadata={len(feature_metadata)}, features={len(feature_frame)}."
+        )
+
+    probabilities = model.predict_proba(feature_frame)
+    if len(probability_columns) != probabilities.shape[1]:
+        raise ValueError(
+            "Probability column count does not match predict_proba output width: "
+            f"columns={len(probability_columns)}, output={probabilities.shape[1]}."
+        )
+
+    rows: list[dict[str, Any]] = []
+    for metadata, probability_row in zip(feature_metadata, probabilities):
+        row = {
+            "match_id": metadata["match_id"],
+            "home_team": metadata["home_team"],
+            "away_team": metadata["away_team"],
+        }
+        for column, probability in zip(probability_columns, probability_row):
+            row[column] = float(probability)
+        rows.append(row)
+
+    return pd.DataFrame(rows), warnings
+
+
 def parse_args() -> argparse.Namespace:
     """Parse CLI options for the future tournament simulation workflow."""
     parser = argparse.ArgumentParser(
@@ -495,8 +538,15 @@ def main() -> None:
         features=features,
         feature_columns=feature_columns,
     )
+    match_probability_table, probability_warnings = build_match_probability_table(
+        model=model,
+        feature_frame=feature_frame,
+        feature_metadata=feature_metadata,
+        class_labels=class_labels,
+    )
     warnings.extend(candidate_warnings)
     warnings.extend(assembly_warnings)
+    warnings.extend(probability_warnings)
 
     if args.n_simulations <= 0:
         raise ValueError("--n-simulations must be greater than 0.")
@@ -505,7 +555,7 @@ def main() -> None:
     print("Tournament JSON schema validation complete.")
     print("Scheduled-match probability scaffold complete.")
     print("Scheduled-match feature row assembly scaffold complete.")
-    print("No model probabilities were generated.")
+    print("Match probability table scaffold complete.")
     print("No simulation was executed and no report files were generated.")
     print(f"participants_path: {args.participants_path}")
     print(f"schedule_path: {args.schedule_path}")
@@ -522,6 +572,7 @@ def main() -> None:
     print(f"prediction_candidate_count: {len(candidates)}")
     print(f"assembled_feature_row_count: {len(feature_frame)}")
     print(f"unassembled_candidate_count: {len(candidates) - len(feature_frame)}")
+    print(f"match_probability_row_count: {len(match_probability_table)}")
     print(f"run_name: {validate_run_name(args.run_name)}")
     print(f"output_dir: {output_dir}")
     print(f"n_simulations: {args.n_simulations}")
@@ -537,11 +588,14 @@ def main() -> None:
         print("Feature assembly metadata:")
         for metadata in feature_metadata[:10]:
             print(f"- {metadata}")
+    if not match_probability_table.empty:
+        print("Match probability preview:")
+        print(match_probability_table.head(10).to_string(index=False))
     if warnings:
         print("Warnings:")
         for warning in warnings:
             print(f"- {warning}")
-    print("Next step: call model.predict_proba() on assembled scheduled feature rows.")
+    print("Next step: save match probabilities to a generated CSV before simulation.")
 
 
 if __name__ == "__main__":
