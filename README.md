@@ -59,6 +59,7 @@ Key changes:
 
 - `src/data/build_dataset.py` supports `filter_korea=True` by default for the MVP and `filter_korea=False` for global data expansion.
 - `src/features/make_features.py` supports `--target-scope korea` for the MVP and `--target-scope home` for global expansion feature generation.
+- MVP and global processed outputs are separated by default to reduce accidental overwrites.
 - `data/mappings/team_name_mapping.csv` provides an initial country alias mapping draft.
 - `src/data/validate_team_mapping.py` validates raw team names against the mapping table.
 - `data/tournament/participants.json`, `schedule.json`, and `bracket.json` provide skeleton interfaces for future simulation work.
@@ -77,6 +78,15 @@ These files are committed because they are source data skeletons and interface d
 | `data/tournament/bracket.json` | Group and knockout bracket schema | `SKELETON_NOT_OFFICIAL` |
 
 The tournament JSON files are not official FIFA data. Values marked `TBD` must be replaced only after official source verification.
+
+## Generated Processed File Paths
+
+| Scope | Match file | Feature file |
+| --- | --- | --- |
+| Korea MVP | `data/processed/matches.csv` | `data/processed/features.csv` |
+| Global expansion | `data/processed/matches_global.csv` | `data/processed/features_global.csv` |
+
+`train_baseline.py` still reads the default MVP feature file. Global model training should be added in a later step with `--features-path` or `--run-name` so global artifacts do not overwrite MVP artifacts.
 
 ## Stack
 
@@ -100,13 +110,15 @@ The implemented MVP pipeline has five explicit stages:
    - If no compatible raw CSV exists in `data/raw/`, it creates a built-in demo dataset.
    - The demo dataset has 15 labeled rows and three target classes so baseline training can run locally.
    - By default, full international raw datasets are filtered to rows where Korea Republic is either `home_team` or `away_team`.
-   - For expansion, run with `--global-scope` or call `build_dataset(filter_korea=False)` to keep all compatible international rows.
+   - For expansion, run with `--global-scope` or call `build_dataset(filter_korea=False)` to keep all compatible international rows and write `data/processed/matches_global.csv` by default.
+   - Custom output is available with `--output-path`.
    - `target_result` is the score-derived home-team perspective label.
    - `target_result_korea_perspective` is the MVP label for Korea Republic matches. It matches `target_result` when Korea Republic is the home team, reverses home `Win`/`Loss` when Korea Republic is the away team, and keeps `Draw` unchanged.
    - `reports/data_quality_summary.md` is generated with row count, missing counts, and target distribution for a quick sanity check.
-2. `src/features/make_features.py` converts processed match rows into model-ready pre-match features and writes `data/processed/features.csv`.
+2. `src/features/make_features.py` converts processed match rows into model-ready pre-match features and writes `data/processed/features.csv` for MVP or `data/processed/features_global.csv` for global expansion.
    - Default execution uses `--target-scope korea`, which preserves the Korea MVP target behavior.
-   - Global expansion feature generation uses `--target-scope home`, which copies the home-team perspective `matches.csv.target_result` into `features.csv.target_result`.
+   - Global expansion feature generation uses `--target-scope home`, which copies the home-team perspective `matches.csv.target_result` into the output `target_result` column.
+   - Custom input and output paths are available with `--input-path` and `--output-path`.
    - Final scores are used only to create result labels.
    - Score/result leakage columns are not included as model features.
 3. `src/models/train_baseline.py` validates the feature table before model fitting.
@@ -197,14 +209,22 @@ The implemented MVP pipeline has five explicit stages:
 
 4. Build the processed match dataset.
 
+   MVP dataset:
+
    ```bash
    python src/data/build_dataset.py
    ```
 
-   Expansion-only global dataset mode:
+   Global expansion dataset:
 
    ```bash
    python src/data/build_dataset.py --global-scope
+   ```
+
+   Custom output path:
+
+   ```bash
+   python src/data/build_dataset.py --global-scope --output-path data/processed/custom_matches.csv
    ```
 
 5. Create model-ready features.
@@ -225,6 +245,12 @@ The implemented MVP pipeline has five explicit stages:
 
    ```bash
    python src/features/make_features.py --target-scope home
+   ```
+
+   Custom input/output paths:
+
+   ```bash
+   python src/features/make_features.py --target-scope home --input-path data/processed/custom_matches.csv --output-path data/processed/custom_features.csv
    ```
 
 6. Train baseline models.
@@ -253,18 +279,30 @@ The implemented MVP pipeline has five explicit stages:
 
 ## Expansion Feature Check
 
-The first global expansion check stops at feature generation. It confirms that the global data path can create `matches.csv` and that the home-team target can be copied safely into `features.csv.target_result`.
+The first global expansion check stops at feature generation. It confirms that the global data path can create `matches_global.csv` and that the home-team target can be copied safely into `features_global.csv`.
 
 ```bash
 python src/data/build_dataset.py --global-scope
 python src/features/make_features.py --target-scope home
 ```
 
-Before running the MVP smoke test again, rebuild the default Korea MVP dataset and features:
+File existence check:
 
 ```bash
-python src/data/build_dataset.py
-python src/features/make_features.py --target-scope korea
+python - <<'PY'
+from pathlib import Path
+
+paths = [
+    "data/processed/matches.csv",
+    "data/processed/features.csv",
+    "data/processed/matches_global.csv",
+    "data/processed/features_global.csv",
+]
+
+for path in paths:
+    p = Path(path)
+    print(path, "OK" if p.exists() else "MISSING")
+PY
 ```
 
 ## Data Skeleton Syntax Check
@@ -303,6 +341,8 @@ Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, the manual MVP pipe
 
 - `data/processed/matches.csv`
 - `data/processed/features.csv`
+- `data/processed/matches_global.csv`
+- `data/processed/features_global.csv`
 - `models/baseline_model.pkl`
 - `reports/baseline_metrics.csv`
 - `reports/prediction_table.csv`
