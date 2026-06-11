@@ -1,12 +1,13 @@
-# Preprocessing Validation Runbook
+# Source and Preprocessing Validation Runbook
 
 ## Purpose
 
-This runbook is for the team member who will run preprocessing validation in a PC, local terminal, or GitHub Codespaces environment.
+This runbook is for the team member who will run source validation and preprocessing validation in a PC, local terminal, or GitHub Codespaces environment.
 
-Do not proceed to model training, probability calibration, or tournament simulation until preprocessing validation passes.
+Source validation must run before preprocessing validation. Preprocessing validation must pass before model training, probability calibration, or tournament simulation.
 
 ```text
+No source validation PASS, no preprocessing.
 No preprocessing PASS, no modeling.
 No preprocessing PASS, no calibration.
 No preprocessing PASS, no simulation.
@@ -56,9 +57,54 @@ ls data/raw
 
 If `data/raw/` does not contain compatible raw CSV files, `src/data/build_dataset.py` may fall back to the built-in demo dataset. Demo-data validation can confirm that the pipeline runs, but it should not be presented as real-data validation.
 
+## Required PC/Codespaces Execution Order
+
+Run these commands in this order:
+
+```bash
+python src/data/validate_sources.py
+bash scripts/validate_preprocessing_pipeline.sh
+python src/models/train_baseline.py --features-path data/processed/features_global.csv --run-name global_baseline
+python src/models/calibrate.py --features-path data/processed/features_global.csv --model-path models/global_baseline_model.pkl --run-name global_baseline
+```
+
+Stop immediately if `python src/data/validate_sources.py` fails. Do not run preprocessing until the raw file existence and expected-column checks pass.
+
+## Source Validation Gate
+
+Source validation checks the raw data layer before any preprocessing output is created.
+
+Run:
+
+```bash
+python src/data/validate_sources.py
+```
+
+Minimum checks:
+
+- `data/raw/source_manifest.csv` exists.
+- The manifest has required columns.
+- Each `raw_file_name` listed in the manifest exists in `data/raw/`.
+- Each raw CSV is readable.
+- Each raw CSV has at least one row.
+- Each raw CSV contains its declared `expected_columns`.
+
+If this command fails, fix the raw files or `source_manifest.csv` first.
+
+```text
+No source validation PASS, no preprocessing.
+```
+
 ## Full Preprocessing Validation Command Sequence
 
 Run the full preprocessing sequence before model training, calibration, or simulation:
+
+```bash
+python src/data/validate_sources.py
+bash scripts/validate_preprocessing_pipeline.sh
+```
+
+The pipeline script expands to:
 
 ```bash
 python src/data/build_dataset.py
@@ -71,11 +117,12 @@ python src/data/validate_team_mapping.py
 python src/data/validate_preprocessing.py --scope both
 ```
 
-## MVP-only Quick Validation
+## Korea-only Quick Validation
 
-Use this when you only need to check the Korea MVP path:
+Use this when you only need to check the Korea filtered path after source validation passes:
 
 ```bash
+python src/data/validate_sources.py
 python src/data/build_dataset.py
 python src/features/make_features.py --target-scope korea
 python src/data/validate_preprocessing.py --scope korea
@@ -83,17 +130,26 @@ python src/data/validate_preprocessing.py --scope korea
 
 ## Global-only Quick Validation
 
-Use this when you only need to check the global expansion path:
+Use this when you only need to check the global-first path after source validation passes:
 
 ```bash
+python src/data/validate_sources.py
 python src/data/build_dataset.py --global-scope
 python src/features/make_features.py --target-scope home
 python src/data/validate_preprocessing.py --scope global
 ```
 
-## Expected Success Output
+## Expected Source Validation Success Output
 
-The final command should print:
+The source validation command should print:
+
+```text
+Source validation passed.
+```
+
+## Expected Preprocessing Success Output
+
+The final preprocessing validation command should print:
 
 ```text
 Preprocessing validation passed.
@@ -114,6 +170,8 @@ status = PASS
 
 ## Failure Output
 
+If source validation fails, it exits with code `1`. Fix source files or `source_manifest.csv` before preprocessing.
+
 If preprocessing validation fails, the command exits with code `1` and prints a failure message such as:
 
 ```text
@@ -131,7 +189,24 @@ Do not continue to model training, calibration, or simulation until the failed c
 
 ## Failure Types and How to Respond
 
-### 1. Required file not found
+### 1. Source validation failure
+
+Likely cause:
+
+- `data/raw/source_manifest.csv` is missing.
+- Manifest required columns are missing.
+- A raw file listed in the manifest does not exist.
+- A raw CSV is empty.
+- A raw CSV does not contain the declared `expected_columns`.
+
+Fix direction:
+
+- Add the missing raw CSV to `data/raw/`.
+- Update `raw_file_name` in `data/raw/source_manifest.csv`.
+- Update `expected_columns` to match the actual raw CSV headers.
+- Do not proceed to preprocessing while source validation fails.
+
+### 2. Required preprocessing file not found
 
 Likely cause:
 
@@ -141,6 +216,7 @@ Likely cause:
 Fix:
 
 ```bash
+python src/data/validate_sources.py
 python src/data/build_dataset.py
 python src/features/make_features.py --target-scope korea
 python src/data/build_dataset.py --global-scope
@@ -153,7 +229,7 @@ Then rerun:
 python src/data/validate_preprocessing.py --scope both
 ```
 
-### 2. Required columns are missing
+### 3. Required columns are missing
 
 Likely cause:
 
@@ -163,10 +239,11 @@ Likely cause:
 Fix direction:
 
 - Inspect raw CSV headers.
-- Add safe aliases in `src/data/build_dataset.py` or `src/data/validate_team_mapping.py`.
+- Update `data/raw/source_manifest.csv` if the manifest is wrong.
+- Add safe aliases in `src/data/build_dataset.py` or `src/data/validate_team_mapping.py` if the raw data uses a common alternative schema.
 - Do not manually patch generated processed CSV files as the main solution.
 
-### 3. Missing values in required columns
+### 4. Missing values in required columns
 
 Likely cause:
 
@@ -179,7 +256,7 @@ Fix direction:
 - For match results and targets, dropping incomplete rows is usually safer than imputing outcomes.
 - Rebuild processed files after changing code or raw data.
 
-### 4. Duplicate rows
+### 5. Duplicate rows
 
 Likely cause:
 
@@ -192,7 +269,7 @@ Fix direction:
 - Prefer deterministic duplicate removal in preprocessing code.
 - Rebuild processed outputs and rerun validation.
 
-### 5. Invalid target values
+### 6. Invalid target values
 
 Expected values:
 
@@ -212,11 +289,11 @@ Fix direction:
 - Check `_add_home_perspective_target()` and `_add_korea_perspective_target()` in `src/data/build_dataset.py`.
 - Do not proceed if target labels include unexpected classes.
 
-### 6. Korea MVP scope failure
+### 7. Korea filtered scope failure
 
-MVP rule:
+Korea filtered rule:
 
-- Every MVP row must include `Korea Republic` as either `home_team` or `away_team`.
+- Every Korea filtered row must include `Korea Republic` as either `home_team` or `away_team`.
 
 Likely cause:
 
@@ -229,7 +306,7 @@ Fix direction:
 - Confirm raw data uses a supported alias or canonical team name.
 - If needed, update team mapping/normalization logic before rebuilding.
 
-### 7. Score leakage failure
+### 8. Score leakage failure
 
 Rule:
 
@@ -244,12 +321,12 @@ Fix direction:
 
 - Check `src/features/make_features.py` and ensure score columns are dropped from the feature table.
 
-### 8. source_target_scope mismatch
+### 9. source_target_scope mismatch
 
 Expected values:
 
-- Korea MVP: `source_target_scope = korea`
-- Global expansion: `source_target_scope = home`
+- Korea filtered path: `source_target_scope = korea`
+- Global-first path: `source_target_scope = home`
 
 Likely cause:
 
@@ -265,18 +342,9 @@ python src/data/validate_preprocessing.py --scope both
 
 ## After PASS
 
-Only after preprocessing validation passes should you continue.
+Only after source validation and preprocessing validation pass should you continue.
 
-MVP:
-
-```bash
-python src/models/train_baseline.py
-python src/models/calibrate.py
-python src/models/predict.py
-python src/models/evaluate.py
-```
-
-Global expansion:
+Global-first model path:
 
 ```bash
 python src/models/train_baseline.py \
@@ -287,6 +355,15 @@ python src/models/calibrate.py \
   --features-path data/processed/features_global.csv \
   --model-path models/global_baseline_model.pkl \
   --run-name global_baseline
+```
+
+Korea filtered path:
+
+```bash
+python src/models/train_baseline.py
+python src/models/calibrate.py
+python src/models/predict.py
+python src/models/evaluate.py
 ```
 
 Simulation scaffold:
@@ -300,6 +377,8 @@ python src/simulation/run_tournament.py
 The following files are generated validation artifacts and should not be committed by default:
 
 ```text
+reports/source_validation.csv
+reports/source_validation.md
 reports/preprocessing_validation.csv
 reports/preprocessing_validation.md
 reports/unmapped_teams.csv
@@ -314,8 +393,15 @@ Commit them only if a reviewer explicitly asks for a specific evidence snapshot.
 Use clear wording when reporting validation status:
 
 ```text
-The preprocessing validation gate has been added to the project workflow.
-The next model-training step should proceed only after validate_preprocessing.py passes.
+The project now separates source validation and preprocessing validation.
+Source validation checks raw file existence and expected columns before preprocessing.
+Preprocessing validation checks processed matches/features before modeling.
+```
+
+If source validation fails, say:
+
+```text
+Source validation failed, so preprocessing and modeling were not run. The raw data source or expected column contract must be fixed first.
 ```
 
 If validation was run only with the built-in demo dataset, say:
@@ -327,5 +413,5 @@ The pipeline was validated on the built-in demo dataset. Real-data validation is
 If validation passes on real raw data, say:
 
 ```text
-The preprocessing gate passed on the current raw dataset, including checks for required columns, missing values, duplicate rows, target labels, MVP scope, source target scope, and final-score leakage.
+The source and preprocessing gates passed on the current raw dataset, including checks for raw file existence, expected columns, required columns, missing values, duplicate rows, target labels, scope, and final-score leakage.
 ```
