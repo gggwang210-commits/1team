@@ -36,6 +36,19 @@ The project now separates dataset scope from modeling target scope.
 
 This separation prevents the global dataset from depending on Korea-only labels. In global mode, `target_result_korea_perspective` may be missing for non-Korea matches; that is expected and allowed. The global feature path should use the home-team perspective target instead.
 
+## Phase 1 Data Skeleton Files
+
+The Phase 1 data expansion files are interface-design inputs, not official tournament data and not generated reports.
+
+| File | Purpose | Status |
+| --- | --- | --- |
+| `data/mappings/team_name_mapping.csv` | Maps country aliases to canonical team names and FIFA codes | Initial draft; must be validated against raw data |
+| `data/tournament/participants.json` | Defines the expected participant input schema for simulation | Skeleton only; not an official participant list |
+| `data/tournament/schedule.json` | Defines the expected match schedule schema for prediction/simulation | Skeleton only; not an official schedule |
+| `data/tournament/bracket.json` | Defines group ranking and knockout bracket schema | Skeleton only; official rules must be verified |
+
+All tournament JSON skeleton files include `data_status`, `source_note`, and `last_updated`. Values marked `TBD` must be replaced only after official source verification.
+
 ## Phase 1: Data Expansion
 
 Priority tasks:
@@ -146,6 +159,19 @@ python src/data/build_dataset.py --global-scope
 python src/features/make_features.py --target-scope home
 ```
 
+Data skeleton syntax check:
+
+```bash
+python -m json.tool data/tournament/participants.json
+python -m json.tool data/tournament/schedule.json
+python -m json.tool data/tournament/bracket.json
+python - <<'PY'
+import pandas as pd
+pd.read_csv('data/mappings/team_name_mapping.csv')
+print('team_name_mapping.csv is readable')
+PY
+```
+
 Before returning to MVP work, rebuild the default Korea files:
 
 ```bash
@@ -159,6 +185,7 @@ python src/features/make_features.py --target-scope korea
 | --- | --- | --- |
 | Team-name inconsistency | High | Create `team_name_mapping.csv` and validate early |
 | Target meaning confusion | High | Use explicit `--target-scope korea/home` and audit columns |
+| Official vs skeleton data confusion | High | Keep `SKELETON_NOT_OFFICIAL`, `source_note`, and `TBD` values until verified |
 | Generated file overwrite between MVP/global modes | Medium | Rebuild MVP files before smoke test; consider separate output files later |
 | Probability calibration quality | High | Use calibration curves and Brier Score comparison |
 | Knockout draw handling | Medium | Make draw-to-winner assumption explicit |
@@ -179,6 +206,6 @@ python src/features/make_features.py --target-scope korea
 
 1. Run MVP verification commands.
 2. Run global expansion feature check.
-3. Create the first draft of `team_name_mapping.csv`.
-4. Add 2026 tournament input skeleton files.
+3. Validate `team_name_mapping.csv` against real raw data.
+4. Replace tournament skeleton files with official data only after source verification.
 5. Design `validate_team_mapping.py` for Phase 1 data-quality validation.
