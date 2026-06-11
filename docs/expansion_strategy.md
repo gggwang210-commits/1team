@@ -25,9 +25,9 @@ The immediate goal is not to replace the working MVP. The goal is to preserve th
 
 ## Target Scope, File, and Artifact Strategy
 
-The project separates dataset scope, target scope, generated processed files, model artifacts, and calibration artifacts so MVP and global expansion runs do not overwrite each other by default.
+The project separates dataset scope, target scope, generated processed files, model artifacts, calibration artifacts, and simulation design artifacts so MVP and global expansion runs do not overwrite each other by default.
 
-| Step | MVP mode | Global baseline mode |
+| Step | MVP mode | Global baseline / simulation mode |
 | --- | --- | --- |
 | Dataset build command | `python src/data/build_dataset.py` | `python src/data/build_dataset.py --global-scope` |
 | Match output | `data/processed/matches.csv` | `data/processed/matches_global.csv` |
@@ -42,6 +42,8 @@ The project separates dataset scope, target scope, generated processed files, mo
 | Calibration command | `python src/models/calibrate.py` | `python src/models/calibrate.py --features-path data/processed/features_global.csv --model-path models/global_baseline_model.pkl --run-name global_baseline` |
 | Calibrated model artifact | `models/calibrated_model.pkl` | `models/global_baseline_calibrated_model.pkl` |
 | Calibration report | `reports/calibration_report/` | `reports/global_baseline_calibration_report/` |
+| Simulation contract | MVP not primary simulation scope | `docs/simulation_contract.md` |
+| Future simulation script | Not required for MVP smoke test | `src/simulation/run_tournament.py` |
 
 This separation prevents the global dataset from depending on Korea-only labels. In global mode, `target_result_korea_perspective` may be missing for non-Korea matches; that is expected and allowed. The global feature path uses the home-team perspective target instead.
 
@@ -134,17 +136,23 @@ Expected outputs:
 
 Priority tasks:
 
-1. Design `src/simulation/run_tournament.py` around calibrated match probabilities.
-2. Implement group-stage simulation.
-3. Implement knockout simulation.
-4. Fix random seed for reproducibility.
-5. Generate round advancement and champion probability outputs.
-6. Decide whether Django can be completed within the remaining schedule.
+1. Use `docs/simulation_contract.md` as the implementation contract for tournament simulation.
+2. Create `src/simulation/run_tournament.py` CLI scaffold in a small follow-up step.
+3. Load and validate `participants.json`, `schedule.json`, and `bracket.json` without claiming official data.
+4. Connect calibrated match probabilities to scheduled match predictions.
+5. Implement group-stage simulation.
+6. Implement knockout simulation with explicit draw/tie-breaker assumptions.
+7. Fix random seed for reproducibility.
+8. Generate round advancement and champion probability outputs.
+9. Decide whether Django can be completed within the remaining schedule.
 
 Expected outputs:
 
+- `docs/simulation_contract.md`
 - `reports/simulation_summary.csv`
 - `reports/champion_probabilities.csv`
+- `reports/round_advancement_probabilities.csv`
+- `reports/group_standings_simulation.csv`
 - Global dashboard
 - Korea Republic filtered dashboard tab
 
@@ -182,6 +190,7 @@ Expected outputs:
 │   └── streamlit_app.py
 ├── docs/
 │   ├── calibration_workflow.md
+│   ├── simulation_contract.md
 │   └── expansion_strategy.md
 └── reports/
     ├── baseline_metrics.csv
@@ -192,6 +201,7 @@ Expected outputs:
     ├── unmapped_teams.csv
     ├── team_mapping_validation.md
     ├── simulation_summary.csv
+    ├── round_advancement_probabilities.csv
     └── champion_probabilities.csv
 ```
 
@@ -225,26 +235,13 @@ python src/models/train_baseline.py --features-path data/processed/features_glob
 python src/models/calibrate.py --features-path data/processed/features_global.csv --model-path models/global_baseline_model.pkl --run-name global_baseline
 ```
 
-Calibration artifact existence check:
+Simulation contract check:
 
 ```bash
 python - <<'PY'
 from pathlib import Path
-
-paths = [
-    "models/calibrated_model.pkl",
-    "reports/calibration_report/calibration_metrics.csv",
-    "reports/calibration_report/calibration_curve.csv",
-    "reports/calibration_report/summary.md",
-    "models/global_baseline_calibrated_model.pkl",
-    "reports/global_baseline_calibration_report/calibration_metrics.csv",
-    "reports/global_baseline_calibration_report/calibration_curve.csv",
-    "reports/global_baseline_calibration_report/summary.md",
-]
-
-for path in paths:
-    p = Path(path)
-    print(path, "OK" if p.exists() else "MISSING")
+path = Path('docs/simulation_contract.md')
+print(path, 'OK' if path.exists() else 'MISSING')
 PY
 ```
 
@@ -278,8 +275,9 @@ python src/data/validate_team_mapping.py
 | Global model artifact overwrite | Lower after Phase 2-1 | `--features-path`, `--run-name`, `--model-path`, and `--metrics-path` separate artifacts |
 | Calibration artifact overwrite | Lower after Phase 2-2 | MVP and global calibration outputs use separate default paths |
 | Probability calibration overfitting | Medium | Prefer sigmoid for small data; use isotonic only with enough data and compare curves |
-| Probability calibration quality | High | Use calibration curves and Brier Score comparison before simulation |
-| Knockout draw handling | Medium | Make draw-to-winner assumption explicit |
+| Simulation based on unofficial skeleton data | High | Keep `TBD` values and label outputs as prototype until official verification |
+| Knockout draw handling | Medium | Make draw-to-winner assumption explicit in `simulation_contract.md` and generated reports |
+| Tournament tie-breaker assumptions | Medium | Use simplified tie-breakers only when clearly labeled; verify official rules before claims |
 | Tournament schedule changes | Medium | Record data version and reference date |
 | Django schedule pressure | Medium | Keep Streamlit MVP stable and treat Django as Go/No-Go |
 | Historical data bias | Medium | Consider time-aware splits and recent-match weighting |
@@ -295,9 +293,8 @@ python src/data/validate_team_mapping.py
 
 ## Next Actions
 
-1. Run MVP calibration verification.
-2. Run global calibration verification.
-3. Compare uncalibrated vs calibrated Log Loss and Brier Score.
-4. Review `calibration_curve.csv` for probability overconfidence or underconfidence.
-5. Design `src/simulation/run_tournament.py` input/output contract.
-6. Keep official 2026 participant and schedule values as `TBD` until source verification.
+1. Review `docs/simulation_contract.md` with the team.
+2. Create `src/simulation/run_tournament.py` CLI scaffold only.
+3. Add tournament JSON loading and validation.
+4. Keep generated simulation reports local by default.
+5. Keep official 2026 participant and schedule values as `TBD` until source verification.
