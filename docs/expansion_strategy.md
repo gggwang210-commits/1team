@@ -23,18 +23,21 @@ The immediate goal is not to replace the working MVP. The goal is to preserve th
 | Service path | Streamlit demo | Streamlit MVP, optional Django dashboard/API |
 | Data pipeline | Korea filtering | Global standardization + team-name mapping |
 
-## Target Scope Strategy
+## Target Scope and File Strategy
 
-The project now separates dataset scope from modeling target scope.
+The project separates dataset scope, target scope, and generated output files so MVP and global expansion runs do not overwrite each other by default.
 
 | Step | MVP mode | Global expansion mode |
 | --- | --- | --- |
-| Dataset build | `python src/data/build_dataset.py` | `python src/data/build_dataset.py --global-scope` |
-| Feature build | `python src/features/make_features.py --target-scope korea` | `python src/features/make_features.py --target-scope home` |
+| Dataset build command | `python src/data/build_dataset.py` | `python src/data/build_dataset.py --global-scope` |
+| Match output | `data/processed/matches.csv` | `data/processed/matches_global.csv` |
+| Feature build command | `python src/features/make_features.py --target-scope korea` | `python src/features/make_features.py --target-scope home` |
+| Feature input | `data/processed/matches.csv` | `data/processed/matches_global.csv` |
+| Feature output | `data/processed/features.csv` | `data/processed/features_global.csv` |
 | Source target | `target_result_korea_perspective` | `target_result` |
-| Meaning of `features.csv.target_result` | Korea Republic perspective | Home-team perspective |
+| Meaning of output `target_result` | Korea Republic perspective | Home-team perspective |
 
-This separation prevents the global dataset from depending on Korea-only labels. In global mode, `target_result_korea_perspective` may be missing for non-Korea matches; that is expected and allowed. The global feature path should use the home-team perspective target instead.
+This separation prevents the global dataset from depending on Korea-only labels. In global mode, `target_result_korea_perspective` may be missing for non-Korea matches; that is expected and allowed. The global feature path uses the home-team perspective target instead.
 
 ## Phase 1 Data Skeleton Files
 
@@ -71,14 +74,17 @@ Priority tasks:
 1. Preserve the existing Korea MVP smoke-test path.
 2. Add optional global dataset mode using `filter_korea=False`.
 3. Add target scope support in feature engineering.
-4. Prepare and validate `data/mappings/team_name_mapping.csv` against raw data.
-5. Prepare `data/tournament/` for 2026 participants, schedule, and bracket data.
-6. Document data-quality assumptions and data version information.
+4. Separate MVP and global generated processed outputs.
+5. Prepare and validate `data/mappings/team_name_mapping.csv` against raw data.
+6. Prepare `data/tournament/` for 2026 participants, schedule, and bracket data.
+7. Document data-quality assumptions and data version information.
 
 Expected outputs:
 
 - `data/processed/matches.csv`
 - `data/processed/features.csv`
+- `data/processed/matches_global.csv`
+- `data/processed/features_global.csv`
 - `data/mappings/team_name_mapping.csv`
 - `reports/unmapped_teams.csv`
 - `reports/team_mapping_validation.md`
@@ -91,15 +97,17 @@ Expected outputs:
 
 Priority tasks:
 
-1. Train global baseline models.
-2. Compare `ranking_context_only` against `with_team_identifiers`.
-3. Document team-name memorization risk.
-4. Add probability calibration using Platt Scaling or Isotonic Regression.
-5. Compare calibrated and uncalibrated Log Loss and Brier Score.
+1. Add `train_baseline.py` support for `--features-path` or `--run-name`.
+2. Train global baseline models without overwriting MVP model artifacts.
+3. Compare `ranking_context_only` against `with_team_identifiers`.
+4. Document team-name memorization risk.
+5. Add probability calibration using Platt Scaling or Isotonic Regression.
+6. Compare calibrated and uncalibrated Log Loss and Brier Score.
 
 Expected outputs:
 
 - `reports/baseline_metrics.csv`
+- `reports/global_baseline_metrics.csv`
 - `reports/calibration_report/`
 - `reports/prediction_table.csv`
 
@@ -127,6 +135,10 @@ Expected outputs:
 ├── data/
 │   ├── raw/
 │   ├── processed/
+│   │   ├── matches.csv
+│   │   ├── features.csv
+│   │   ├── matches_global.csv
+│   │   └── features_global.csv
 │   ├── mappings/
 │   │   └── team_name_mapping.csv
 │   └── tournament/
@@ -152,6 +164,7 @@ Expected outputs:
 │   └── expansion_strategy.md
 └── reports/
     ├── baseline_metrics.csv
+    ├── global_baseline_metrics.csv
     ├── calibration_report/
     ├── prediction_table.csv
     ├── unmapped_teams.csv
@@ -179,6 +192,32 @@ python src/data/build_dataset.py --global-scope
 python src/features/make_features.py --target-scope home
 ```
 
+Processed file existence check:
+
+```bash
+python - <<'PY'
+from pathlib import Path
+
+paths = [
+    "data/processed/matches.csv",
+    "data/processed/features.csv",
+    "data/processed/matches_global.csv",
+    "data/processed/features_global.csv",
+]
+
+for path in paths:
+    p = Path(path)
+    print(path, "OK" if p.exists() else "MISSING")
+PY
+```
+
+Custom output example:
+
+```bash
+python src/data/build_dataset.py --global-scope --output-path data/processed/custom_matches.csv
+python src/features/make_features.py --target-scope home --input-path data/processed/custom_matches.csv --output-path data/processed/custom_features.csv
+```
+
 Data skeleton syntax check:
 
 ```bash
@@ -198,13 +237,6 @@ Team mapping validation:
 python src/data/validate_team_mapping.py
 ```
 
-Before returning to MVP work, rebuild the default Korea files:
-
-```bash
-python src/data/build_dataset.py
-python src/features/make_features.py --target-scope korea
-```
-
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
@@ -212,7 +244,8 @@ python src/features/make_features.py --target-scope korea
 | Team-name inconsistency | High | Create `team_name_mapping.csv` and validate early |
 | Target meaning confusion | High | Use explicit `--target-scope korea/home` and audit columns |
 | Official vs skeleton data confusion | High | Keep `SKELETON_NOT_OFFICIAL`, `source_note`, and `TBD` values until verified |
-| Generated file overwrite between MVP/global modes | Medium | Rebuild MVP files before smoke test; consider separate output files later |
+| Generated file overwrite between MVP/global modes | Lower after Phase 1-5 | MVP and global processed outputs now use separate default paths |
+| Global model artifact overwrite | Medium | Next add `train_baseline.py --features-path` or `--run-name` |
 | Probability calibration quality | High | Use calibration curves and Brier Score comparison |
 | Knockout draw handling | Medium | Make draw-to-winner assumption explicit |
 | Tournament schedule changes | Medium | Record data version and reference date |
@@ -231,7 +264,7 @@ python src/features/make_features.py --target-scope korea
 ## Next Actions
 
 1. Run MVP verification commands.
-2. Run global expansion feature check.
-3. Run `python src/data/validate_team_mapping.py` after adding real raw match CSV files.
-4. Update `team_name_mapping.csv` from `reports/unmapped_teams.csv`.
-5. Replace tournament skeleton files with official data only after source verification.
+2. Run global feature file generation check.
+3. Confirm `matches_global.csv` and `features_global.csv` are generated separately.
+4. Add `train_baseline.py --features-path` or `--run-name` so global baseline training does not overwrite MVP model artifacts.
+5. Design separate global baseline model and metrics output paths.
