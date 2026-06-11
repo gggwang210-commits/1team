@@ -218,19 +218,27 @@ The implemented global-first pipeline has seven explicit stages:
 
 3. Add raw datasets to `data/raw/` when available.
 
-4. Build the global processed match dataset.
+4. Run the source validation gate.
+
+   ```bash
+   python src/data/validate_sources.py
+   ```
+
+   Stop here if source validation fails. Do not run preprocessing until the raw files and expected columns pass this check.
+
+5. Build the global processed match dataset.
 
    ```bash
    python src/data/build_dataset.py --global-scope
    ```
 
-5. Create global model-ready features.
+6. Create global model-ready features.
 
    ```bash
    python src/features/make_features.py --target-scope home
    ```
 
-6. Run the preprocessing validation gate.
+7. Run the preprocessing validation gate.
 
    Recommended one-command PC/Codespaces path, including both global and Korea filtered checks:
 
@@ -247,12 +255,13 @@ The implemented global-first pipeline has seven explicit stages:
    Continue only if preprocessing validation passes. The project rule is:
 
    ```text
+   No source validation PASS, no preprocessing.
    No preprocessing PASS, no modeling.
    No preprocessing PASS, no calibration.
    No preprocessing PASS, no simulation.
    ```
 
-7. Train the global baseline model.
+8. Train the global baseline model.
 
    ```bash
    python src/models/train_baseline.py \
@@ -260,7 +269,7 @@ The implemented global-first pipeline has seven explicit stages:
      --run-name global_baseline
    ```
 
-8. Calibrate global baseline probabilities.
+9. Calibrate global baseline probabilities.
 
    ```bash
    python src/models/calibrate.py \
@@ -269,7 +278,7 @@ The implemented global-first pipeline has seven explicit stages:
      --run-name global_baseline
    ```
 
-9. Prepare simulation-stage match probabilities.
+10. Prepare simulation-stage match probabilities.
 
    ```bash
    python src/simulation/run_tournament.py
