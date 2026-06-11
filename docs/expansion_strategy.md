@@ -39,6 +39,7 @@ The project separates dataset scope, target scope, generated processed files, an
 | Baseline training command | `python src/models/train_baseline.py` | `python src/models/train_baseline.py --features-path data/processed/features_global.csv --run-name global_baseline` |
 | Model artifact | `models/baseline_model.pkl` | `models/global_baseline_model.pkl` |
 | Metrics artifact | `reports/baseline_metrics.csv` | `reports/global_baseline_metrics.csv` |
+| Calibration implementation prompt | `docs/calibration_workflow.md` | `docs/calibration_workflow.md` |
 
 This separation prevents the global dataset from depending on Korea-only labels. In global mode, `target_result_korea_perspective` may be missing for non-Korea matches; that is expected and allowed. The global feature path uses the home-team perspective target instead.
 
@@ -105,8 +106,9 @@ Priority tasks:
 3. Compare MVP metrics and global metrics at a high level, while remembering they are trained on different scopes.
 4. Compare `ranking_context_only` against `with_team_identifiers`.
 5. Document team-name memorization risk.
-6. Add probability calibration using Platt Scaling or Isotonic Regression.
-7. Compare calibrated and uncalibrated Log Loss and Brier Score.
+6. Use `docs/calibration_workflow.md` as the implementation prompt for probability calibration.
+7. Add probability calibration using Platt Scaling or Isotonic Regression.
+8. Compare calibrated and uncalibrated Log Loss and Brier Score.
 
 Expected outputs:
 
@@ -114,6 +116,7 @@ Expected outputs:
 - `models/global_baseline_model.pkl`
 - `reports/baseline_metrics.csv`
 - `reports/global_baseline_metrics.csv`
+- `docs/calibration_workflow.md`
 - `reports/calibration_report/`
 - `reports/prediction_table.csv`
 
@@ -167,6 +170,7 @@ Expected outputs:
 ├── app/
 │   └── streamlit_app.py
 ├── docs/
+│   ├── calibration_workflow.md
 │   └── expansion_strategy.md
 └── reports/
     ├── baseline_metrics.csv
@@ -197,6 +201,16 @@ Global baseline check:
 python src/data/build_dataset.py --global-scope
 python src/features/make_features.py --target-scope home
 python src/models/train_baseline.py --features-path data/processed/features_global.csv --run-name global_baseline
+```
+
+Calibration workflow prompt check:
+
+```bash
+python - <<'PY'
+from pathlib import Path
+path = Path('docs/calibration_workflow.md')
+print(path, 'OK' if path.exists() else 'MISSING')
+PY
 ```
 
 Model artifact existence check:
@@ -255,6 +269,7 @@ python src/data/validate_team_mapping.py
 | Official vs skeleton data confusion | High | Keep `SKELETON_NOT_OFFICIAL`, `source_note`, and `TBD` values until verified |
 | Generated file overwrite between MVP/global modes | Lower after Phase 1-5 | MVP and global processed outputs use separate default paths |
 | Global model artifact overwrite | Lower after Phase 2-1 | `--features-path`, `--run-name`, `--model-path`, and `--metrics-path` separate artifacts |
+| Calibration code implementation blocked or delayed | Medium | Keep `docs/calibration_workflow.md` as a reviewed implementation prompt and add code in a separate small PR |
 | Probability calibration quality | High | Use calibration curves and Brier Score comparison |
 | Knockout draw handling | Medium | Make draw-to-winner assumption explicit |
 | Tournament schedule changes | Medium | Record data version and reference date |
@@ -272,8 +287,9 @@ python src/data/validate_team_mapping.py
 
 ## Next Actions
 
-1. Run MVP baseline verification.
-2. Run global baseline verification.
-3. Compare `reports/baseline_metrics.csv` and `reports/global_baseline_metrics.csv` carefully, noting that dataset scopes differ.
-4. Design probability calibration workflow.
-5. Add `src/models/calibrate.py` in the next phase.
+1. Review `docs/calibration_workflow.md` with the team.
+2. Add `src/models/calibrate.py` in a small dedicated code change.
+3. Run MVP calibration verification.
+4. Run global calibration verification.
+5. Compare uncalibrated vs calibrated Log Loss and Brier Score.
+6. Use calibration results to design `src/simulation/run_tournament.py`.
