@@ -1,49 +1,50 @@
-# 1TEAM Expansion Strategy
+# 1TEAM Global-first Strategy
 
 ## Executive Summary
 
-This document records the first expansion direction for the 2026 FIFA World Cup Prediction Project.
+This document records the global-first direction for the 2026 FIFA World Cup Prediction Project.
 
-The project is moving from a Korea Republic MVP toward a global prediction system:
+The project priority is now global match-level Win/Draw/Loss probability prediction:
 
-- AS-IS: Korea Republic match-level Win/Draw/Loss prediction
-- TO-BE: All-participant match prediction, calibrated probabilities, tournament simulation, and champion probabilities
-- Korea Republic position: application case filtered from the global model
+- Primary scope: global international match prediction
+- Simulation direction: calibrated global match probabilities, tournament simulation, and champion probabilities
+- Korea Republic position: filtered application case and legacy smoke-test path
 
-The immediate goal is not to replace the working MVP. The goal is to preserve the MVP path while adding a safe expansion path.
+The goal is not to delete the Korea Republic path. The goal is to make global prediction the first-priority path while preserving Korea Republic as a reproducible filtered example.
 
 ## Scope Change
 
-| Item | AS-IS | TO-BE |
+| Item | Previous Korea-first framing | Current global-first framing |
 | --- | --- | --- |
 | Prediction target | Korea Republic matches | Global international matches and 2026 target fixtures |
-| Output | Match-level W/D/L probabilities | Match probabilities + tournament simulation + champion probabilities |
-| Korea role | Main project target | Filtered dashboard/application case |
-| Model path | LR/RF baseline | LR/RF + calibrated model |
-| Service path | Streamlit demo | Streamlit MVP, optional Django dashboard/API |
-| Data pipeline | Korea filtering | Global standardization + team-name mapping |
+| Output | Korea Republic W/D/L probabilities | Global match probabilities + tournament simulation + champion probabilities |
+| Korea role | Main project target | Filtered dashboard/application case and smoke-test path |
+| Model path | Korea LR/RF baseline | Global LR/RF + calibrated model first, Korea path retained |
+| Service path | Streamlit Korea demo | Global dashboard first, Korea filtered tab optional |
+| Data pipeline | Korea filtering | Global standardization + team-name mapping, Korea filtered path retained |
 
 ## Target Scope, File, and Artifact Strategy
 
-The project separates dataset scope, target scope, generated processed files, model artifacts, calibration artifacts, and simulation design artifacts so MVP and global expansion runs do not overwrite each other by default.
+The project separates dataset scope, target scope, generated processed files, model artifacts, calibration artifacts, and simulation design artifacts so global and Korea filtered runs do not overwrite each other by default.
 
-| Step | MVP mode | Global baseline / simulation mode |
+| Step | Global baseline / simulation mode | Korea filtered / legacy smoke-test mode |
 | --- | --- | --- |
-| Dataset build command | `python src/data/build_dataset.py` | `python src/data/build_dataset.py --global-scope` |
-| Match output | `data/processed/matches.csv` | `data/processed/matches_global.csv` |
-| Feature build command | `python src/features/make_features.py --target-scope korea` | `python src/features/make_features.py --target-scope home` |
-| Feature input | `data/processed/matches.csv` | `data/processed/matches_global.csv` |
-| Feature output | `data/processed/features.csv` | `data/processed/features_global.csv` |
-| Source target | `target_result_korea_perspective` | `target_result` |
-| Meaning of output `target_result` | Korea Republic perspective | Home-team perspective |
-| Baseline training command | `python src/models/train_baseline.py` | `python src/models/train_baseline.py --features-path data/processed/features_global.csv --run-name global_baseline` |
-| Model artifact | `models/baseline_model.pkl` | `models/global_baseline_model.pkl` |
-| Metrics artifact | `reports/baseline_metrics.csv` | `reports/global_baseline_metrics.csv` |
-| Calibration command | `python src/models/calibrate.py` | `python src/models/calibrate.py --features-path data/processed/features_global.csv --model-path models/global_baseline_model.pkl --run-name global_baseline` |
-| Calibrated model artifact | `models/calibrated_model.pkl` | `models/global_baseline_calibrated_model.pkl` |
-| Calibration report | `reports/calibration_report/` | `reports/global_baseline_calibration_report/` |
-| Simulation contract | MVP not primary simulation scope | `docs/simulation_contract.md` |
-| Future simulation script | Not required for MVP smoke test | `src/simulation/run_tournament.py` |
+| Dataset build command | `python src/data/build_dataset.py --global-scope` | `python src/data/build_dataset.py` |
+| Match output | `data/processed/matches_global.csv` | `data/processed/matches.csv` |
+| Feature build command | `python src/features/make_features.py --target-scope home` | `python src/features/make_features.py --target-scope korea` |
+| Feature input | `data/processed/matches_global.csv` | `data/processed/matches.csv` |
+| Feature output | `data/processed/features_global.csv` | `data/processed/features.csv` |
+| Source target | `target_result` | `target_result_korea_perspective` |
+| Meaning of output `target_result` | Home-team perspective | Korea Republic perspective |
+| Preprocessing validation | `python src/data/validate_preprocessing.py --scope global` | `python src/data/validate_preprocessing.py --scope korea` |
+| Baseline training command | `python src/models/train_baseline.py --features-path data/processed/features_global.csv --run-name global_baseline` | `python src/models/train_baseline.py` |
+| Model artifact | `models/global_baseline_model.pkl` | `models/baseline_model.pkl` |
+| Metrics artifact | `reports/global_baseline_metrics.csv` | `reports/baseline_metrics.csv` |
+| Calibration command | `python src/models/calibrate.py --features-path data/processed/features_global.csv --model-path models/global_baseline_model.pkl --run-name global_baseline` | `python src/models/calibrate.py` |
+| Calibrated model artifact | `models/global_baseline_calibrated_model.pkl` | `models/calibrated_model.pkl` |
+| Calibration report | `reports/global_baseline_calibration_report/` | `reports/calibration_report/` |
+| Simulation contract | `docs/simulation_contract.md` | Not primary simulation scope |
+| Future simulation script | `src/simulation/run_tournament.py` | Not required for smoke test |
 
 This separation prevents the global dataset from depending on Korea-only labels. In global mode, `target_result_korea_perspective` may be missing for non-Korea matches; that is expected and allowed. The global feature path uses the home-team perspective target instead.
 
@@ -207,32 +208,31 @@ Expected outputs:
 
 ## Verification Commands
 
-Korea MVP check:
-
-```bash
-python src/data/build_dataset.py
-python src/features/make_features.py --target-scope korea
-python src/models/train_baseline.py
-python src/models/predict.py
-python src/models/evaluate.py
-```
-
-MVP calibration check:
-
-```bash
-python src/data/build_dataset.py
-python src/features/make_features.py --target-scope korea
-python src/models/train_baseline.py
-python src/models/calibrate.py
-```
-
-Global calibration check:
+Primary global check:
 
 ```bash
 python src/data/build_dataset.py --global-scope
 python src/features/make_features.py --target-scope home
+python src/data/validate_preprocessing.py --scope global
 python src/models/train_baseline.py --features-path data/processed/features_global.csv --run-name global_baseline
 python src/models/calibrate.py --features-path data/processed/features_global.csv --model-path models/global_baseline_model.pkl --run-name global_baseline
+```
+
+Full preprocessing gate:
+
+```bash
+bash scripts/validate_preprocessing_pipeline.sh
+```
+
+Korea filtered smoke-test check:
+
+```bash
+python src/data/build_dataset.py
+python src/features/make_features.py --target-scope korea
+python src/data/validate_preprocessing.py --scope korea
+python src/models/train_baseline.py
+python src/models/predict.py
+python src/models/evaluate.py
 ```
 
 Simulation contract check:
