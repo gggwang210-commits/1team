@@ -4,65 +4,78 @@
 
 Machine learning based prediction system for 2026 FIFA World Cup match outcomes.
 
-The repository keeps the current Korea Republic MVP reproducible while preparing a first expansion path toward all-participant match prediction, calibrated probabilities, tournament simulation, and champion probabilities.
+The repository prioritizes a **global match prediction pipeline first**, with Korea Republic preserved as a reproducible filtered use case and legacy smoke-test path.
 
 ## Scope Summary
 
-Current MVP:
+Primary scope:
 
-- Korea Republic match-level Win/Draw/Loss probabilities
-- Korea Republic perspective labels
-- Streamlit MVP demo
+- Global match-level Win/Draw/Loss probability prediction
+- Global baseline and calibrated probability outputs
+- Tournament-simulation-ready match probability tables
+- Group-stage and knockout simulation scaffolding
+- Champion probabilities as a later simulation output
 
-Expansion direction:
+Korea Republic role:
 
-- Global match-level Win/Draw/Loss probabilities
-- Korea Republic as a filtered application case from the global model
-- Probability calibration for simulation input
-- Group-stage and knockout simulation
-- Champion probabilities
-- Optional Django dashboard/API depending on schedule feasibility
+- Filtered application case from the global model
+- Legacy reproducible MVP/smoke-test path
+- Useful presentation example, not the primary modeling scope
 
-This repository still prioritizes a working match-level outcome pipeline first. Tournament simulation and champion probabilities are expansion deliverables, not replacements for the reproducible MVP path.
+The project now treats global match prediction as the main direction. Korea Republic prediction is preserved for reproducibility and demonstration, but it is no longer the first-priority project target.
 
-## MVP Scope
+## Global-first Project Scope
 
-The current MVP focuses on predicting Korea Republic group-stage match outcome probabilities:
+The current priority is to build a global match-level prediction pipeline that can estimate Win/Draw/Loss probabilities for international football fixtures.
 
-- Korea Republic Win Probability
-- Korea Republic Draw Probability
-- Korea Republic Loss Probability
+Primary output concept:
 
-All MVP labels and predictions use **Korea Republic's perspective**. For example, `Win` means Korea Republic wins the match, regardless of whether Korea Republic is listed as the home or away team.
+- Home-team Win Probability
+- Draw Probability
+- Home-team Loss Probability
 
-MVP does not directly classify champion teams or run a tournament simulator. Later phases expand in this order:
+For Korea Republic views, predictions can be filtered and reinterpreted as a Korea application case when Korea Republic appears as either `home_team` or `away_team`.
+
+The global pipeline does not directly claim official 2026 FIFA World Cup results. Later phases expand in this order:
 
 match probabilities → probability calibration → group simulation → knockout simulation → champion probability.
+
+### Korea Filtered Use Case / Legacy MVP Path
+
+The Korea Republic path is retained as a reproducible filtered use case and local smoke-test path.
+
+In this path:
+
+- Korea Republic labels use Korea Republic's perspective.
+- `Win` means Korea Republic wins the match, regardless of whether Korea Republic is listed as the home or away team.
+- This path is useful for demonstration and regression checks, but it is no longer the primary project scope.
 
 ### Target column contract
 
 The project intentionally uses result labels from different perspectives at different pipeline stages. Keep this contract explicit to avoid target leakage or accidentally training on the wrong label:
 
-- `matches.csv.target_result` = home-team perspective result label.
+- `matches_global.csv.target_result` = home-team perspective result label for global modeling.
+- `features_global.csv.target_result` = model target for the global pipeline.
+- `matches.csv.target_result` = home-team perspective result label in the Korea-filtered match table.
 - `matches.csv.target_result_korea_perspective` = Korea Republic perspective result label when the match includes Korea Republic.
-- `features.csv.target_result` = model target for the active pipeline scope.
+- `features.csv.target_result` = model target for the Korea filtered/smoke-test path.
 - `features.csv.target_result_korea_perspective` = retained audit copy for Korea Republic perspective when available, excluded from every model input feature set.
 - `features.csv.source_target_column` and `features.csv.source_target_scope` = audit metadata showing which target definition was copied into `features.csv.target_result`.
 
-`src/models/train_baseline.py` treats `features.csv.target_result` as the only modeling target and excludes every target/result/score-like column from the feature matrix before preprocessing and training.
+`src/models/train_baseline.py` treats `features*.csv.target_result` as the only modeling target and excludes every target/result/score-like column from the feature matrix before preprocessing and training.
 
-## Expansion Strategy
+## Global-first Strategy
 
-The first expansion converts the Korea-only pipeline into a global pipeline without breaking the MVP smoke-test path.
+The project keeps the existing Korea smoke-test path while making the global prediction pipeline the primary path.
 
 Key changes:
 
-- `src/data/build_dataset.py` supports `filter_korea=True` by default for the MVP and `filter_korea=False` for global data expansion.
-- `src/features/make_features.py` supports `--target-scope korea` for the MVP and `--target-scope home` for global expansion feature generation.
-- MVP and global processed outputs are separated by default to reduce accidental overwrites.
+- `src/data/build_dataset.py` supports `filter_korea=False` through `--global-scope` for global data expansion.
+- `src/features/make_features.py` supports `--target-scope home` for global feature generation and `--target-scope korea` for the Korea filtered path.
+- Global and Korea processed outputs are separated by default to reduce accidental overwrites.
 - `src/data/validate_preprocessing.py` is the required preprocessing gate before model training, calibration, or simulation.
 - `scripts/validate_preprocessing_pipeline.sh` runs the complete preprocessing build and validation gate in one command.
-- `src/models/train_baseline.py` supports `--features-path`, `--run-name`, `--model-path`, and `--metrics-path` so MVP and global baseline artifacts can be separated.
+- `src/models/train_baseline.py` supports `--features-path`, `--run-name`, `--model-path`, and `--metrics-path` so global and Korea artifacts can be separated.
 - `src/models/calibrate.py` calibrates baseline probabilities and writes calibration metrics, curve data, and summary reports.
 - `data/mappings/team_name_mapping.csv` provides an initial country alias mapping draft.
 - `src/data/validate_team_mapping.py` validates raw team names against the mapping table.
@@ -70,7 +83,7 @@ Key changes:
 - `src/simulation/` is reserved for tournament simulation code.
 - `docs/preprocessing_gate.md` documents the preprocessing PASS/FAIL rule.
 - `docs/preprocessing_runbook.md` provides a PC/Codespaces execution checklist.
-- `docs/expansion_strategy.md` records the expansion roadmap and team decision points.
+- `docs/expansion_strategy.md` records the global-first roadmap and team decision points.
 
 ## Phase 1 Data Files
 
@@ -89,8 +102,8 @@ The tournament JSON files are not official FIFA data. Values marked `TBD` must b
 
 | Scope | Match file | Feature file | Validation outputs | Model file | Metrics file | Calibration outputs |
 | --- | --- | --- | --- | --- | --- | --- |
-| Korea MVP | `data/processed/matches.csv` | `data/processed/features.csv` | `reports/preprocessing_validation.csv`, `reports/preprocessing_validation.md` | `models/baseline_model.pkl` | `reports/baseline_metrics.csv` | `models/calibrated_model.pkl`, `reports/calibration_report/` |
 | Global baseline | `data/processed/matches_global.csv` | `data/processed/features_global.csv` | `reports/preprocessing_validation.csv`, `reports/preprocessing_validation.md` | `models/global_baseline_model.pkl` | `reports/global_baseline_metrics.csv` | `models/global_baseline_calibrated_model.pkl`, `reports/global_baseline_calibration_report/` |
+| Korea filtered path | `data/processed/matches.csv` | `data/processed/features.csv` | `reports/preprocessing_validation.csv`, `reports/preprocessing_validation.md` | `models/baseline_model.pkl` | `reports/baseline_metrics.csv` | `models/calibrated_model.pkl`, `reports/calibration_report/` |
 
 Calibration is not tournament simulation yet. It checks probability quality before simulation by comparing uncalibrated and calibrated probabilities. Lower Log Loss and lower Brier Score are better.
 
@@ -104,36 +117,36 @@ Calibration is not tournament simulation yet. It checks probability quality befo
 
 ## Status
 
-Research & MVP Phase with documented expansion path.
+Global-first prediction pipeline with a preserved Korea filtered smoke-test path.
 
-## MVP Data Flow
+## Global-first Data Flow
 
 Generated report files are intentionally not committed. Running the pipeline recreates reports and model artifacts from the current code, data, and model run. Treat those files as local evidence for the current run rather than authoritative checked-in model results.
 
-The implemented MVP pipeline has seven explicit stages:
+The implemented global-first pipeline has seven explicit stages:
 
-1. `src/data/build_dataset.py` standardizes international match-result data and writes `data/processed/matches.csv`.
-   - For expansion, run with `--global-scope` to write `data/processed/matches_global.csv` by default.
+1. `src/data/build_dataset.py --global-scope` standardizes international match-result data and writes `data/processed/matches_global.csv`.
+   - The Korea filtered path remains available with `python src/data/build_dataset.py`.
    - Custom output is available with `--output-path`.
-2. `src/features/make_features.py` converts processed match rows into model-ready pre-match features.
-   - MVP output: `data/processed/features.csv`.
+2. `src/features/make_features.py --target-scope home` converts processed global match rows into model-ready pre-match features.
    - Global output: `data/processed/features_global.csv`.
+   - Korea filtered output: `data/processed/features.csv`.
    - Custom input and output paths are available with `--input-path` and `--output-path`.
 3. `src/data/validate_preprocessing.py` verifies preprocessing outputs before modeling.
-   - Checks missing values, duplicates, required columns, target labels, Korea MVP scope, source target scope, and final-score leakage.
+   - Checks missing values, duplicates, required columns, target labels, Korea filtered scope, source target scope, and final-score leakage.
    - Writes `reports/preprocessing_validation.csv` and `reports/preprocessing_validation.md`.
    - If any check fails, downstream modeling, calibration, and simulation should stop.
 4. `src/models/train_baseline.py` validates the feature table before model fitting.
-   - MVP default input: `data/processed/features.csv`.
-   - Global input can be selected with `--features-path data/processed/features_global.csv`.
+   - Global input should use `--features-path data/processed/features_global.csv`.
    - `--run-name global_baseline` writes `models/global_baseline_model.pkl` and `reports/global_baseline_metrics.csv`.
+   - The Korea filtered path remains available through the default `features.csv` input.
    - Implemented metrics include Accuracy, Macro F1, Log Loss, and one-vs-rest multiclass Brier Score.
 5. `src/models/calibrate.py` calibrates baseline probabilities.
-   - MVP default output: `models/calibrated_model.pkl` and `reports/calibration_report/`.
    - Global output with `--run-name global_baseline`: `models/global_baseline_calibrated_model.pkl` and `reports/global_baseline_calibration_report/`.
+   - Korea filtered output remains available as `models/calibrated_model.pkl` and `reports/calibration_report/`.
    - Report files include `calibration_metrics.csv`, `calibration_curve.csv`, and `summary.md`.
-6. `src/models/predict.py` generates the required MVP prediction table.
-7. `src/models/evaluate.py` evaluates the MVP baseline outputs.
+6. `src/simulation/run_tournament.py` prepares tournament-simulation-stage probability inputs from the global calibrated model.
+7. `src/models/predict.py` and `src/models/evaluate.py` remain available for the Korea filtered legacy demonstration path.
 
 ## Project Structure
 
@@ -188,7 +201,7 @@ The implemented MVP pipeline has seven explicit stages:
 └── .gitignore
 ```
 
-## How to Run the MVP
+## How to Run the Global-first Pipeline
 
 1. Create and activate a Python virtual environment.
 
@@ -205,35 +218,13 @@ The implemented MVP pipeline has seven explicit stages:
 
 3. Add raw datasets to `data/raw/` when available.
 
-4. Build the processed match dataset.
-
-   MVP dataset:
-
-   ```bash
-   python src/data/build_dataset.py
-   ```
-
-   Global expansion dataset:
+4. Build the global processed match dataset.
 
    ```bash
    python src/data/build_dataset.py --global-scope
    ```
 
-5. Create model-ready features.
-
-   MVP default, Korea Republic perspective:
-
-   ```bash
-   python src/features/make_features.py
-   ```
-
-   Explicit MVP command:
-
-   ```bash
-   python src/features/make_features.py --target-scope korea
-   ```
-
-   Global expansion feature mode, home-team perspective:
+5. Create global model-ready features.
 
    ```bash
    python src/features/make_features.py --target-scope home
@@ -241,17 +232,16 @@ The implemented MVP pipeline has seven explicit stages:
 
 6. Run the preprocessing validation gate.
 
-   One-command PC/Codespaces path:
+   Recommended one-command PC/Codespaces path, including both global and Korea filtered checks:
 
    ```bash
    bash scripts/validate_preprocessing_pipeline.sh
    ```
 
-   Manual path:
+   Global-only validation path:
 
    ```bash
-   python src/data/validate_team_mapping.py
-   python src/data/validate_preprocessing.py --scope both
+   python src/data/validate_preprocessing.py --scope global
    ```
 
    Continue only if preprocessing validation passes. The project rule is:
@@ -262,15 +252,7 @@ The implemented MVP pipeline has seven explicit stages:
    No preprocessing PASS, no simulation.
    ```
 
-7. Train baseline models.
-
-   MVP baseline:
-
-   ```bash
-   python src/models/train_baseline.py
-   ```
-
-   Global baseline:
+7. Train the global baseline model.
 
    ```bash
    python src/models/train_baseline.py \
@@ -278,15 +260,7 @@ The implemented MVP pipeline has seven explicit stages:
      --run-name global_baseline
    ```
 
-8. Calibrate baseline probabilities.
-
-   MVP calibration:
-
-   ```bash
-   python src/models/calibrate.py
-   ```
-
-   Global calibration:
+8. Calibrate global baseline probabilities.
 
    ```bash
    python src/models/calibrate.py \
@@ -295,23 +269,24 @@ The implemented MVP pipeline has seven explicit stages:
      --run-name global_baseline
    ```
 
-9. Generate the required MVP prediction table.
+9. Prepare simulation-stage match probabilities.
 
    ```bash
-   python src/models/predict.py
+   python src/simulation/run_tournament.py
    ```
 
-10. Evaluate baseline models.
+## Korea Filtered Use Case / Legacy Smoke-test Path
 
-   ```bash
-   python src/models/evaluate.py
-   ```
+Use this path when the team needs a quick reproducible Korea Republic demonstration or regression check:
 
-11. Launch the Streamlit demo.
-
-   ```bash
-   streamlit run app/streamlit_app.py
-   ```
+```bash
+python src/data/build_dataset.py
+python src/features/make_features.py --target-scope korea
+python src/data/validate_preprocessing.py --scope korea
+python src/models/train_baseline.py
+python src/models/predict.py
+python src/models/evaluate.py
+```
 
 ## Preprocessing Validation Gate
 
@@ -329,6 +304,12 @@ Manual validation-only path:
 python src/data/validate_preprocessing.py --scope both
 ```
 
+Primary global-only validation path:
+
+```bash
+python src/data/validate_preprocessing.py --scope global
+```
+
 The validation gate checks:
 
 - Required output files exist and are readable.
@@ -337,9 +318,9 @@ The validation gate checks:
 - Required columns do not contain missing values.
 - Duplicate rows are not present.
 - Target labels are limited to `Win`, `Draw`, and `Loss`.
-- Korea MVP rows are Korea Republic matches only.
+- Korea filtered rows are Korea Republic matches only.
 - Feature tables do not contain final-score leakage columns such as `home_score` or `away_score`.
-- `source_target_scope` matches the intended scope: `korea` for MVP and `home` for global expansion.
+- `source_target_scope` matches the intended scope: `home` for global and `korea` for the Korea filtered path.
 
 Generated reports:
 
@@ -348,7 +329,7 @@ Generated reports:
 
 If the gate fails, inspect the reports and fix preprocessing before running model or simulation steps.
 
-## Expansion Calibration Check
+## Global Calibration Check
 
 ```bash
 python src/data/build_dataset.py --global-scope
@@ -370,14 +351,14 @@ python - <<'PY'
 from pathlib import Path
 
 paths = [
-    "models/calibrated_model.pkl",
-    "reports/calibration_report/calibration_metrics.csv",
-    "reports/calibration_report/calibration_curve.csv",
-    "reports/calibration_report/summary.md",
     "models/global_baseline_calibrated_model.pkl",
     "reports/global_baseline_calibration_report/calibration_metrics.csv",
     "reports/global_baseline_calibration_report/calibration_curve.csv",
     "reports/global_baseline_calibration_report/summary.md",
+    "models/calibrated_model.pkl",
+    "reports/calibration_report/calibration_metrics.csv",
+    "reports/calibration_report/calibration_curve.csv",
+    "reports/calibration_report/summary.md",
 ]
 
 for path in paths:
@@ -418,7 +399,7 @@ These reports are local validation outputs and are not committed by default.
 
 ### Generated artifact policy
 
-Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, `scripts/validate_preprocessing_pipeline.sh`, the manual MVP pipeline commands, global baseline commands, calibration commands, `src/data/validate_team_mapping.py`, or `src/data/validate_preprocessing.py` can refresh local generated artifacts. These files are reproducible outputs from the current code, data, and model run, so they are generally not committed:
+Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, `scripts/validate_preprocessing_pipeline.sh`, the manual global pipeline commands, Korea filtered path commands, calibration commands, `src/data/validate_team_mapping.py`, or `src/data/validate_preprocessing.py` can refresh local generated artifacts. These files are reproducible outputs from the current code, data, and model run, so they are generally not committed:
 
 - `data/processed/matches.csv`
 - `data/processed/features.csv`
@@ -452,51 +433,52 @@ git fetch origin main && git checkout main
 ./scripts/smoke_test.sh
 ```
 
-The smoke test gate is intentionally limited to the reproducible MVP pipeline commands. Post-MVP features such as calibration, simulation, and Django must not be added as mandatory smoke test requirements until the team explicitly changes the acceptance criteria.
+The smoke test gate is intentionally limited to the reproducible Korea filtered path commands. Post-MVP features such as calibration, simulation, and Django must not be added as mandatory smoke test requirements until the team explicitly changes the acceptance criteria.
 
 ### Development quick check
 
-Run the MVP preprocessing gate and pipeline in order:
-
-1. `python src/data/build_dataset.py`
-2. `python src/features/make_features.py --target-scope korea`
-3. `python src/data/validate_preprocessing.py --scope korea`
-4. `python src/models/train_baseline.py`
-5. `python src/models/predict.py`
-6. `python src/models/evaluate.py`
-
-For the full MVP + global preprocessing gate, run:
+For the full global + Korea preprocessing gate, run:
 
 ```bash
 bash scripts/validate_preprocessing_pipeline.sh
 ```
 
-## MVP Deliverables
+For the primary global path, run:
 
-- Data Quality Report
+1. `python src/data/build_dataset.py --global-scope`
+2. `python src/features/make_features.py --target-scope home`
+3. `python src/data/validate_preprocessing.py --scope global`
+4. `python src/models/train_baseline.py --features-path data/processed/features_global.csv --run-name global_baseline`
+5. `python src/models/calibrate.py --features-path data/processed/features_global.csv --model-path models/global_baseline_model.pkl --run-name global_baseline`
+6. `python src/simulation/run_tournament.py`
+
+## Global-first Deliverables
+
+- Global processed match dataset
+- Global model-ready feature table
 - Preprocessing Validation Report
-- Baseline Model
-- Prediction Table
-- Streamlit Demo
-
-## Expansion Deliverables
-
-- Team name mapping table
-- 2026 tournament input tables
-- Team mapping validation report
-- Preprocessing validation report
 - Global baseline metrics
 - Calibration report
 - Calibrated prediction model
+- Match probability table for simulation
 - Simulation summary
 - Champion probabilities
 - Global dashboard / Django API if schedule allows
 
-## MVP Limitations
+## Korea Filtered Deliverables
+
+- Korea filtered data-quality report
+- Korea filtered preprocessing validation report
+- Korea filtered baseline model
+- Korea filtered prediction table
+- Streamlit demonstration path
+
+## Limitations
 
 - The built-in demo dataset is intentionally small and is only meant to prove that the local pipeline runs end to end.
 - Team-name identifiers such as `home_team` and `away_team` can make demo metrics look better than they really are because a model may memorize team-specific outcomes instead of learning generalizable ranking or match-context signals.
-- MVP metrics should not be treated as production-ready claims until they are validated on larger historical datasets with time-aware splits and stronger leakage checks.
+- Global and Korea metrics should not be treated as production-ready claims until they are validated on larger historical datasets with time-aware splits and stronger leakage checks.
+- Tournament JSON files are skeleton interfaces and must not be presented as official FIFA schedule, participant, or bracket data until source verification is complete.
 
 ## Post-MVP Improvements
 
