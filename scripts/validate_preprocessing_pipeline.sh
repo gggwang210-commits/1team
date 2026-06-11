@@ -37,7 +37,8 @@ python src/data/validate_preprocessing.py --scope both
 
 echo "Preprocessing validation pipeline passed."
 echo "Generated validation reports:"
-echo "- Source validation: console output only in the current minimal version"
+echo "- reports/source_validation.md"
+echo "- reports/source_validation.csv"
 echo "- reports/preprocessing_validation.md"
 echo "- reports/preprocessing_validation.csv"
 echo "- reports/team_mapping_validation.md"
