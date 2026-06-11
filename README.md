@@ -61,6 +61,7 @@ Key changes:
 - `src/features/make_features.py` supports `--target-scope korea` for the MVP and `--target-scope home` for global expansion feature generation.
 - MVP and global processed outputs are separated by default to reduce accidental overwrites.
 - `src/models/train_baseline.py` supports `--features-path`, `--run-name`, `--model-path`, and `--metrics-path` so MVP and global baseline artifacts can be separated.
+- `src/models/calibrate.py` calibrates baseline probabilities and writes calibration metrics, curve data, and summary reports.
 - `data/mappings/team_name_mapping.csv` provides an initial country alias mapping draft.
 - `src/data/validate_team_mapping.py` validates raw team names against the mapping table.
 - `data/tournament/participants.json`, `schedule.json`, and `bracket.json` provide skeleton interfaces for future simulation work.
@@ -82,12 +83,12 @@ The tournament JSON files are not official FIFA data. Values marked `TBD` must b
 
 ## Generated File Paths
 
-| Scope | Match file | Feature file | Model file | Metrics file |
-| --- | --- | --- | --- | --- |
-| Korea MVP | `data/processed/matches.csv` | `data/processed/features.csv` | `models/baseline_model.pkl` | `reports/baseline_metrics.csv` |
-| Global baseline | `data/processed/matches_global.csv` | `data/processed/features_global.csv` | `models/global_baseline_model.pkl` | `reports/global_baseline_metrics.csv` |
+| Scope | Match file | Feature file | Model file | Metrics file | Calibration outputs |
+| --- | --- | --- | --- | --- | --- |
+| Korea MVP | `data/processed/matches.csv` | `data/processed/features.csv` | `models/baseline_model.pkl` | `reports/baseline_metrics.csv` | `models/calibrated_model.pkl`, `reports/calibration_report/` |
+| Global baseline | `data/processed/matches_global.csv` | `data/processed/features_global.csv` | `models/global_baseline_model.pkl` | `reports/global_baseline_metrics.csv` | `models/global_baseline_calibrated_model.pkl`, `reports/global_baseline_calibration_report/` |
 
-Global baseline training is not calibration or simulation yet. It only confirms that `features_global.csv` can be trained with the same baseline modeling workflow without overwriting MVP artifacts.
+Calibration is not tournament simulation yet. It checks probability quality before simulation by comparing uncalibrated and calibrated probabilities. Lower Log Loss and lower Brier Score are better.
 
 ## Stack
 
@@ -105,7 +106,7 @@ Research & MVP Phase with documented expansion path.
 
 Generated report files are intentionally not committed. Running the pipeline recreates reports and model artifacts from the current code, data, and model run. Treat those files as local evidence for the current run rather than authoritative checked-in model results.
 
-The implemented MVP pipeline has five explicit stages:
+The implemented MVP pipeline has six explicit stages:
 
 1. `src/data/build_dataset.py` standardizes international match-result data and writes `data/processed/matches.csv`.
    - For expansion, run with `--global-scope` to write `data/processed/matches_global.csv` by default.
@@ -119,8 +120,12 @@ The implemented MVP pipeline has five explicit stages:
    - Global input can be selected with `--features-path data/processed/features_global.csv`.
    - `--run-name global_baseline` writes `models/global_baseline_model.pkl` and `reports/global_baseline_metrics.csv`.
    - Implemented metrics include Accuracy, Macro F1, Log Loss, and one-vs-rest multiclass Brier Score.
-4. `src/models/predict.py` generates the required MVP prediction table.
-5. `src/models/evaluate.py` evaluates the MVP baseline outputs.
+4. `src/models/calibrate.py` calibrates baseline probabilities.
+   - MVP default output: `models/calibrated_model.pkl` and `reports/calibration_report/`.
+   - Global output with `--run-name global_baseline`: `models/global_baseline_calibrated_model.pkl` and `reports/global_baseline_calibration_report/`.
+   - Report files include `calibration_metrics.csv`, `calibration_curve.csv`, and `summary.md`.
+5. `src/models/predict.py` generates the required MVP prediction table.
+6. `src/models/evaluate.py` evaluates the MVP baseline outputs.
 
 ## Project Structure
 
@@ -140,6 +145,7 @@ The implemented MVP pipeline has five explicit stages:
 │       ├── participants.json
 │       └── schedule.json
 ├── docs/
+│   ├── calibration_workflow.md
 │   └── expansion_strategy.md
 ├── models/
 │   └── .gitkeep
@@ -156,6 +162,7 @@ The implemented MVP pipeline has five explicit stages:
 │   ├── features/
 │   │   └── make_features.py
 │   ├── models/
+│   │   ├── calibrate.py
 │   │   ├── evaluate.py
 │   │   ├── predict.py
 │   │   └── train_baseline.py
@@ -198,12 +205,6 @@ The implemented MVP pipeline has five explicit stages:
    python src/data/build_dataset.py --global-scope
    ```
 
-   Custom output path:
-
-   ```bash
-   python src/data/build_dataset.py --global-scope --output-path data/processed/custom_matches.csv
-   ```
-
 5. Create model-ready features.
 
    MVP default, Korea Republic perspective:
@@ -224,12 +225,6 @@ The implemented MVP pipeline has five explicit stages:
    python src/features/make_features.py --target-scope home
    ```
 
-   Custom input/output paths:
-
-   ```bash
-   python src/features/make_features.py --target-scope home --input-path data/processed/custom_matches.csv --output-path data/processed/custom_features.csv
-   ```
-
 6. Train baseline models.
 
    MVP baseline:
@@ -246,34 +241,42 @@ The implemented MVP pipeline has five explicit stages:
      --run-name global_baseline
    ```
 
-   Custom model and metrics paths:
+7. Calibrate baseline probabilities.
+
+   MVP calibration:
 
    ```bash
-   python src/models/train_baseline.py \
-     --features-path data/processed/features_global.csv \
-     --model-path models/custom_global_model.pkl \
-     --metrics-path reports/custom_global_metrics.csv
+   python src/models/calibrate.py
    ```
 
-7. Generate the required MVP prediction table.
+   Global calibration:
+
+   ```bash
+   python src/models/calibrate.py \
+     --features-path data/processed/features_global.csv \
+     --model-path models/global_baseline_model.pkl \
+     --run-name global_baseline
+   ```
+
+8. Generate the required MVP prediction table.
 
    ```bash
    python src/models/predict.py
    ```
 
-8. Evaluate baseline models.
+9. Evaluate baseline models.
 
    ```bash
    python src/models/evaluate.py
    ```
 
-9. Launch the Streamlit demo.
+10. Launch the Streamlit demo.
 
    ```bash
    streamlit run app/streamlit_app.py
    ```
 
-## Expansion Baseline Check
+## Expansion Calibration Check
 
 ```bash
 python src/data/build_dataset.py --global-scope
@@ -281,19 +284,27 @@ python src/features/make_features.py --target-scope home
 python src/models/train_baseline.py \
   --features-path data/processed/features_global.csv \
   --run-name global_baseline
+python src/models/calibrate.py \
+  --features-path data/processed/features_global.csv \
+  --model-path models/global_baseline_model.pkl \
+  --run-name global_baseline
 ```
 
-File existence check:
+Calibration artifact check:
 
 ```bash
 python - <<'PY'
 from pathlib import Path
 
 paths = [
-    "models/baseline_model.pkl",
-    "reports/baseline_metrics.csv",
-    "models/global_baseline_model.pkl",
-    "reports/global_baseline_metrics.csv",
+    "models/calibrated_model.pkl",
+    "reports/calibration_report/calibration_metrics.csv",
+    "reports/calibration_report/calibration_curve.csv",
+    "reports/calibration_report/summary.md",
+    "models/global_baseline_calibrated_model.pkl",
+    "reports/global_baseline_calibration_report/calibration_metrics.csv",
+    "reports/global_baseline_calibration_report/calibration_curve.csv",
+    "reports/global_baseline_calibration_report/summary.md",
 ]
 
 for path in paths:
@@ -334,7 +345,7 @@ These reports are local validation outputs and are not committed by default.
 
 ### Generated artifact policy
 
-Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, the manual MVP pipeline commands, global baseline commands, or `src/data/validate_team_mapping.py` can refresh local generated artifacts. These files are reproducible outputs from the current code, data, and model run, so they are generally not committed:
+Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, the manual MVP pipeline commands, global baseline commands, calibration commands, or `src/data/validate_team_mapping.py` can refresh local generated artifacts. These files are reproducible outputs from the current code, data, and model run, so they are generally not committed:
 
 - `data/processed/matches.csv`
 - `data/processed/features.csv`
@@ -342,8 +353,12 @@ Running `verify_mvp_pipeline.sh`, `./scripts/smoke_test.sh`, the manual MVP pipe
 - `data/processed/features_global.csv`
 - `models/baseline_model.pkl`
 - `models/global_baseline_model.pkl`
+- `models/calibrated_model.pkl`
+- `models/global_baseline_calibrated_model.pkl`
 - `reports/baseline_metrics.csv`
 - `reports/global_baseline_metrics.csv`
+- `reports/calibration_report/`
+- `reports/global_baseline_calibration_report/`
 - `reports/prediction_table.csv`
 - `reports/model_evaluation.md`
 - `reports/smoke_test_report.md`
@@ -386,7 +401,8 @@ Run the MVP pipeline in order:
 - 2026 tournament input tables
 - Team mapping validation report
 - Global baseline metrics
-- Calibrated prediction table
+- Calibration report
+- Calibrated prediction model
 - Simulation summary
 - Champion probabilities
 - Global dashboard / Django API if schedule allows
@@ -401,6 +417,6 @@ Run the MVP pipeline in order:
 
 - Replace the demo dataset with real historical international match results and FIFA rankings.
 - Add rolling recent-form features, rest-days features, and tournament-context features.
-- Add probability calibration and compare calibrated vs. uncalibrated Log Loss/Brier Score alongside Accuracy and Macro F1.
+- Use calibration metrics and calibration curves before tournament simulation.
 - Add tournament simulation with fixed seed reproducibility.
 - Add data governance checks before using sensitive, licensed, or API-based datasets.
