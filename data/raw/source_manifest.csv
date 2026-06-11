@@ -1,3 +1,3 @@
 raw_file_name,dataset_name,source_url,source_owner,download_date,license,expected_columns,used_for,verification_status
-international_results.csv,International football match results,TO_BE_FILLED,TO_BE_FILLED,TO_BE_FILLED,TO_BE_FILLED,date;home_team;away_team;home_score;away_score,global_match_results,pending
+international_results.csv,International football match results,https://github.com/martj42/international_results,martj42,TO_BE_FILLED,CC0-1.0,date;home_team;away_team;home_score;away_score,global_match_results,pending
 team_strength_ratings.csv,Team strength rating candidates,TO_BE_FILLED,TO_BE_FILLED,TO_BE_FILLED,TO_BE_FILLED,rating_date;country_full;rating;rating_source,ranking_or_rating_features,pending
