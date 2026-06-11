@@ -1,14 +1,15 @@
 """Create model-ready features from standardized match data.
 
 Data flow for beginners:
-1. Read ``data/processed/matches.csv`` produced by ``src/data/build_dataset.py``.
+1. Read the processed match dataset produced by ``src/data/build_dataset.py``.
 2. Convert raw match facts into model inputs such as rank difference and neutral
    venue flag.
-3. Save ``data/processed/features.csv`` for ``src/models/train_baseline.py``.
+3. Save a model-ready feature table for ``src/models/train_baseline.py``.
 
-Default behavior preserves the Korea Republic MVP target. Expansion work can run
-this script with ``--target-scope home`` to use the home-team perspective target
-created by the global dataset build.
+Default behavior preserves the Korea Republic MVP target and file paths.
+Expansion work can run this script with ``--target-scope home`` to read
+``data/processed/matches_global.csv`` and write
+``data/processed/features_global.csv``.
 
 Preprocessing note: final scores are used only to create result labels and are
 never saved as model input features.
@@ -22,8 +23,11 @@ from pathlib import Path
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MATCHES_PATH = PROJECT_ROOT / "data" / "processed" / "matches.csv"
-FEATURES_PATH = PROJECT_ROOT / "data" / "processed" / "features.csv"
+PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
+MATCHES_PATH = PROCESSED_DIR / "matches.csv"
+GLOBAL_MATCHES_PATH = PROCESSED_DIR / "matches_global.csv"
+FEATURES_PATH = PROCESSED_DIR / "features.csv"
+GLOBAL_FEATURES_PATH = PROCESSED_DIR / "features_global.csv"
 
 MODEL_TARGET_COLUMN = "target_result"
 KOREA_TARGET_COLUMN = "target_result_korea_perspective"
@@ -44,6 +48,20 @@ def _target_column_for_scope(target_scope: str) -> str:
         f"Unknown target_scope '{target_scope}'. Expected one of: "
         f"{', '.join(TARGET_SCOPE_CHOICES)}."
     )
+
+
+def _default_input_path(target_scope: str) -> Path:
+    """Choose the safe default match input path for MVP or global feature mode."""
+    if target_scope == TARGET_SCOPE_HOME:
+        return GLOBAL_MATCHES_PATH
+    return MATCHES_PATH
+
+
+def _default_output_path(target_scope: str) -> Path:
+    """Choose the safe default feature output path for MVP or global feature mode."""
+    if target_scope == TARGET_SCOPE_HOME:
+        return GLOBAL_FEATURES_PATH
+    return FEATURES_PATH
 
 
 def load_matches(
@@ -178,8 +196,28 @@ def _parse_args() -> argparse.Namespace:
         choices=TARGET_SCOPE_CHOICES,
         default=TARGET_SCOPE_KOREA,
         help=(
-            "Choose which match-result target to copy into features.csv target_result. "
+            "Choose which match-result target to copy into the output target_result. "
             "Use 'korea' for the MVP and 'home' for global expansion."
+        ),
+    )
+    parser.add_argument(
+        "--input-path",
+        type=Path,
+        default=None,
+        help=(
+            "Optional processed matches CSV path. If omitted, korea scope reads "
+            "data/processed/matches.csv and home scope reads "
+            "data/processed/matches_global.csv."
+        ),
+    )
+    parser.add_argument(
+        "--output-path",
+        type=Path,
+        default=None,
+        help=(
+            "Optional feature output CSV path. If omitted, korea scope writes "
+            "data/processed/features.csv and home scope writes "
+            "data/processed/features_global.csv."
         ),
     )
     return parser.parse_args()
@@ -188,9 +226,11 @@ def _parse_args() -> argparse.Namespace:
 def main() -> None:
     """CLI entry point for the feature-engineering step."""
     args = _parse_args()
-    matches = load_matches(target_scope=args.target_scope)
+    input_path = args.input_path or _default_input_path(args.target_scope)
+    output_path = args.output_path or _default_output_path(args.target_scope)
+    matches = load_matches(path=input_path, target_scope=args.target_scope)
     features = make_features(matches, target_scope=args.target_scope)
-    save_features(features)
+    save_features(features, path=output_path)
 
 
 if __name__ == "__main__":
