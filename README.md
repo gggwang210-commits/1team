@@ -47,6 +47,7 @@ The project intentionally uses result labels from different perspectives at diff
 - `matches.csv.target_result_korea_perspective` = Korea Republic perspective result label when the match includes Korea Republic.
 - `features.csv.target_result` = model target for the active pipeline scope.
 - `features.csv.target_result_korea_perspective` = retained audit copy for Korea Republic perspective when available, excluded from every model input feature set.
+- `features.csv.source_target_column` and `features.csv.source_target_scope` = audit metadata showing which target definition was copied into `features.csv.target_result`.
 
 `src/models/train_baseline.py` treats `features.csv.target_result` as the only modeling target and excludes every target/result/score-like column from the feature matrix before preprocessing and training.
 
@@ -57,6 +58,7 @@ The first expansion converts the Korea-only pipeline into a global pipeline with
 Key changes:
 
 - `src/data/build_dataset.py` supports `filter_korea=True` by default for the MVP and `filter_korea=False` for global data expansion.
+- `src/features/make_features.py` supports `--target-scope korea` for the MVP and `--target-scope home` for global expansion feature generation.
 - `data/mappings/` is reserved for `team_name_mapping.csv`.
 - `data/tournament/` is reserved for 2026 participants, schedule, and bracket inputs.
 - `src/simulation/` is reserved for tournament simulation code.
@@ -89,6 +91,8 @@ The implemented MVP pipeline has five explicit stages:
    - `target_result_korea_perspective` is the MVP label for Korea Republic matches. It matches `target_result` when Korea Republic is the home team, reverses home `Win`/`Loss` when Korea Republic is the away team, and keeps `Draw` unchanged.
    - `reports/data_quality_summary.md` is generated with row count, missing counts, and target distribution for a quick sanity check.
 2. `src/features/make_features.py` converts processed match rows into model-ready pre-match features and writes `data/processed/features.csv`.
+   - Default execution uses `--target-scope korea`, which preserves the Korea MVP target behavior.
+   - Global expansion feature generation uses `--target-scope home`, which copies the home-team perspective `matches.csv.target_result` into `features.csv.target_result`.
    - Final scores are used only to create result labels.
    - Score/result leakage columns are not included as model features.
 3. `src/models/train_baseline.py` validates the feature table before model fitting.
@@ -132,7 +136,7 @@ The implemented MVP pipeline has five explicit stages:
 │   │   ├── clean_data.py
 │   │   └── load_data.py
 │   ├── features/
-│   │   └── make_features.py
+│   │   └── make_features.py          # Feature engineering with target scope support
 │   ├── models/
 │   │   ├── evaluate.py
 │   │   ├── predict.py
@@ -186,8 +190,22 @@ The implemented MVP pipeline has five explicit stages:
 
 5. Create model-ready features.
 
+   MVP default, Korea Republic perspective:
+
    ```bash
    python src/features/make_features.py
+   ```
+
+   Explicit MVP command:
+
+   ```bash
+   python src/features/make_features.py --target-scope korea
+   ```
+
+   Global expansion feature mode, home-team perspective:
+
+   ```bash
+   python src/features/make_features.py --target-scope home
    ```
 
 6. Train baseline models.
@@ -213,6 +231,22 @@ The implemented MVP pipeline has five explicit stages:
    ```bash
    streamlit run app/streamlit_app.py
    ```
+
+## Expansion Feature Check
+
+The first global expansion check stops at feature generation. It confirms that the global data path can create `matches.csv` and that the home-team target can be copied safely into `features.csv.target_result`.
+
+```bash
+python src/data/build_dataset.py --global-scope
+python src/features/make_features.py --target-scope home
+```
+
+Before running the MVP smoke test again, rebuild the default Korea MVP dataset and features:
+
+```bash
+python src/data/build_dataset.py
+python src/features/make_features.py --target-scope korea
+```
 
 ## CI and Local Smoke Test
 
