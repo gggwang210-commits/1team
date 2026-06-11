@@ -1,9 +1,11 @@
-"""Phase 3-3 tournament simulation CLI scaffold with schema checks.
+"""Phase 3-4 tournament simulation CLI scaffold with probability inputs.
 
 This scaffold intentionally does not run tournament simulation yet.
 It validates input paths, parses tournament JSON files, checks minimal schema
-contracts, warns about skeleton/TBD values, and prints the selected input/output
-contract so the next implementation step can safely add simulation logic.
+contracts, warns about skeleton/TBD values, loads generated probability inputs
+when available, and prints scheduled-match probability candidate information.
+
+No simulation reports are generated in this phase.
 """
 
 from __future__ import annotations
@@ -12,6 +14,9 @@ import argparse
 import json
 from pathlib import Path
 from typing import Any
+
+import joblib
+import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_PARTICIPANTS_PATH = PROJECT_ROOT / "data" / "tournament" / "participants.json"
@@ -22,6 +27,7 @@ DEFAULT_MODEL_PATH = PROJECT_ROOT / "models" / "global_baseline_calibrated_model
 DEFAULT_REPORTS_DIR = PROJECT_ROOT / "reports"
 DEFAULT_OUTPUT_DIR = DEFAULT_REPORTS_DIR / "simulation_global"
 SKELETON_STATUS = "SKELETON_NOT_OFFICIAL"
+TBD_VALUE = "TBD"
 
 
 def validate_run_name(run_name: str) -> str:
@@ -88,7 +94,7 @@ def find_tbd_values(value: Any, path: str = "$", limit: int = 20) -> list[str]:
     def walk(current: Any, current_path: str) -> None:
         if len(found) >= limit:
             return
-        if current == "TBD":
+        if current == TBD_VALUE:
             found.append(current_path)
             return
         if isinstance(current, dict):
@@ -209,6 +215,89 @@ def validate_bracket_schema(data: dict) -> list[str]:
     return warnings
 
 
+def load_features_table(features_path: Path, required: bool) -> pd.DataFrame | None:
+    """Load features_global.csv when available for future match feature assembly."""
+    if not features_path.exists():
+        if required:
+            raise FileNotFoundError(f"features file not found: {features_path}")
+        return None
+    return pd.read_csv(features_path)
+
+
+def load_probability_model(model_path: Path, required: bool):
+    """Load calibrated probability model when available for future predictions."""
+    if not model_path.exists():
+        if required:
+            raise FileNotFoundError(f"calibrated model file not found: {model_path}")
+        return None
+    model = joblib.load(model_path)
+    if not hasattr(model, "predict_proba"):
+        raise TypeError(
+            f"Loaded model from {model_path} does not support predict_proba(). "
+            "Tournament simulation requires probability outputs."
+        )
+    return model
+
+
+def infer_model_feature_columns(model, features: pd.DataFrame | None) -> list[str]:
+    """Infer model input columns for future scheduled-match feature assembly."""
+    if model is not None and hasattr(model, "feature_names_in_"):
+        return [str(column) for column in model.feature_names_in_]
+
+    preprocessor = getattr(model, "named_steps", {}).get("preprocessor") if model is not None else None
+    if preprocessor is not None and hasattr(preprocessor, "feature_names_in_"):
+        return [str(column) for column in preprocessor.feature_names_in_]
+
+    if features is not None:
+        excluded = {
+            "target_result",
+            "target_result_korea_perspective",
+            "source_target_column",
+            "source_target_scope",
+        }
+        return [column for column in features.columns if column not in excluded]
+    return []
+
+
+def model_class_labels(model) -> list[str]:
+    """Return model class labels in predict_proba order when a model is loaded."""
+    if model is None or not hasattr(model, "classes_"):
+        return []
+    return [str(label) for label in model.classes_]
+
+
+def probability_column_names(class_labels: list[str]) -> list[str]:
+    """Return future probability output column names based on model class labels."""
+    return [f"prob_{label}" for label in class_labels]
+
+
+def scheduled_match_candidates(schedule: dict) -> tuple[list[dict[str, Any]], list[str]]:
+    """Build prediction candidates from schedule matches, excluding TBD teams."""
+    candidates: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    matches = schedule.get("matches", [])
+
+    for index, match in enumerate(matches):
+        match_id = match.get("match_id", f"MATCH_{index}")
+        home_team = match.get("home_team")
+        away_team = match.get("away_team")
+        if home_team == TBD_VALUE or away_team == TBD_VALUE:
+            warnings.append(f"Skipping {match_id}: home_team or away_team is still TBD.")
+            continue
+        candidates.append(
+            {
+                "match_id": match_id,
+                "stage": match.get("stage"),
+                "group": match.get("group"),
+                "home_team": home_team,
+                "away_team": away_team,
+                "home_fifa_code": match.get("home_fifa_code"),
+                "away_fifa_code": match.get("away_fifa_code"),
+            }
+        )
+    return candidates, warnings
+
+
 def parse_args() -> argparse.Namespace:
     """Parse CLI options for the future tournament simulation workflow."""
     parser = argparse.ArgumentParser(
@@ -292,28 +381,35 @@ def main() -> None:
     warnings.extend(validate_schedule_schema(schedule))
     warnings.extend(validate_bracket_schema(bracket))
 
-    validate_existing_file(
-        args.features_path,
-        "features",
-        required=not args.allow_missing_generated_inputs,
-    )
-    validate_existing_file(
-        args.model_path,
-        "calibrated model",
-        required=not args.allow_missing_generated_inputs,
-    )
+    required_generated_inputs = not args.allow_missing_generated_inputs
+    features = load_features_table(args.features_path, required=required_generated_inputs)
+    model = load_probability_model(args.model_path, required=required_generated_inputs)
+    feature_columns = infer_model_feature_columns(model, features)
+    class_labels = model_class_labels(model)
+    probability_columns = probability_column_names(class_labels)
+    candidates, candidate_warnings = scheduled_match_candidates(schedule)
+    warnings.extend(candidate_warnings)
 
     if args.n_simulations <= 0:
         raise ValueError("--n-simulations must be greater than 0.")
 
     print("Tournament simulation CLI scaffold ready.")
     print("Tournament JSON schema validation complete.")
+    print("Scheduled-match probability scaffold complete.")
     print("No simulation was executed and no report files were generated.")
     print(f"participants_path: {args.participants_path}")
     print(f"schedule_path: {args.schedule_path}")
     print(f"bracket_path: {args.bracket_path}")
     print(f"features_path: {args.features_path}")
+    print(f"features_loaded: {features is not None}")
+    print(f"features_row_count: {len(features) if features is not None else 0}")
     print(f"model_path: {args.model_path}")
+    print(f"model_loaded: {model is not None}")
+    print(f"model_type: {type(model).__name__ if model is not None else 'None'}")
+    print(f"model_classes: {class_labels}")
+    print(f"probability_columns: {probability_columns}")
+    print(f"feature_column_count: {len(feature_columns)}")
+    print(f"prediction_candidate_count: {len(candidates)}")
     print(f"run_name: {validate_run_name(args.run_name)}")
     print(f"output_dir: {output_dir}")
     print(f"n_simulations: {args.n_simulations}")
@@ -321,11 +417,15 @@ def main() -> None:
     print(summarize_json("participants", participants))
     print(summarize_json("schedule", schedule))
     print(summarize_json("bracket", bracket))
+    if candidates:
+        print("Prediction candidates:")
+        for candidate in candidates[:10]:
+            print(f"- {candidate}")
     if warnings:
         print("Warnings:")
         for warning in warnings:
             print(f"- {warning}")
-    print("Next step: add scheduled-match probability generation.")
+    print("Next step: assemble scheduled-match feature rows for model.predict_proba().")
 
 
 if __name__ == "__main__":
