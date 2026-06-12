@@ -171,7 +171,9 @@ def make_features(
             features = features.drop(columns=[score_column])
 
     before_drop = len(features)
-    features = features.dropna(subset=["date", MODEL_TARGET_COLUMN]).reset_index(drop=True)
+    features = features.dropna(subset=["date", MODEL_TARGET_COLUMN]).reset_index(
+        drop=True
+    )
     dropped_rows = before_drop - len(features)
     if dropped_rows:
         print(
@@ -184,6 +186,14 @@ def make_features(
 def save_features(features: pd.DataFrame, path: Path = FEATURES_PATH) -> None:
     """Persist the model-ready feature table."""
     path.parent.mkdir(parents=True, exist_ok=True)
+
+    before_dedup = len(features)
+    features = features.drop_duplicates().reset_index(drop=True)
+    dropped_duplicates = before_dedup - len(features)
+
+    if dropped_duplicates:
+        print(f"Dropped duplicate feature rows: {dropped_duplicates}")
+
     features.to_csv(path, index=False)
     print(f"Saved model-ready features with {len(features)} rows to: {path}")
 
