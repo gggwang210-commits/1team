@@ -1,18 +1,27 @@
 {
-  "data_status": "SKELETON_NOT_OFFICIAL",
-  "source_note": "Structure-only file for Phase 2-3 development. Replace TBD values after confirming official FIFA 2026 group ranking rules and knockout bracket rules.",
-  "last_updated": "2026-06-11",
+  "data_status": "FORMAT_VERIFIED_RULES_PENDING_OFFICIAL_DOC",
+  "source_note": "48팀/12조/32강 진출 구조와 무승부 처리(연장 30분 + 승부차기)는 ESPN 공식 포맷 기사로 확인(2026-06-12). 조별 순위 tiebreaker 세부 순서는 보도 간 차이가 있어(FIFA 일반 규정: 승점→골득실→다득점 vs Sky Sports 보도: 상대전적 우선) FIFA 공식 2026 대회 규정 문서로 최종 확정 전까지 ranking_tiebreakers를 단정하지 말 것.",
+  "verification_sources": [
+    "https://www.espn.com/soccer/story/_/id/47108758/2026-fifa-world-cup-format-tiebreakers-fixtures-schedule",
+    "https://www.skysports.com/football/news/12098/13540670/world-cup-2026-group-a-guide-fixtures-schedule-standings-and-odds-for-mexico-south-africa-south-korea-and-czech-republic"
+  ],
+  "last_updated": "2026-06-12",
   "tournament": {
     "name": "2026 FIFA World Cup",
-    "bracket_version": "TBD",
-    "notes": "This file defines the expected interface for tournament simulation code. It is not an official bracket."
+    "bracket_version": "format_v1",
+    "notes": "시뮬레이션 인터페이스 정의 파일. 공식 대진표 슬롯은 FIFA 문서 검증 후 채울 것."
   },
   "group_stage_rules": {
-    "teams_per_group": "TBD",
+    "groups": 12,
+    "groups_count": 12,
+    "teams_per_group": 4,
     "points_win": 3,
     "points_draw": 1,
     "points_loss": 0,
-    "ranking_tiebreakers": [
+    "third_place_qualifiers": 8,
+    "advancement": "조 1위 12팀 + 조 2위 12팀 + 3위 중 상위 8팀 = 32팀이 32강 진출",
+    "ranking_tiebreakers_status": "PENDING_OFFICIAL_VERIFICATION",
+    "ranking_tiebreakers_candidate": [
       "points",
       "goal_difference",
       "goals_scored",
@@ -22,84 +31,96 @@
       "fair_play_points",
       "drawing_of_lots"
     ],
-    "notes": "Tiebreaker order must be verified against official FIFA 2026 regulations before use."
+    "third_place_ranking_note": "3위 8팀 선정 기준(승점→골득실→다득점→페어플레이 등)도 공식 규정으로 검증 필요.",
+    "notes": "초기 시뮬레이션은 candidate 순서를 simplified tiebreaker로 사용 가능하나 리포트에 simplified임을 명시한다."
   },
   "knockout_rules": {
+    "rounds": [
+      "round_of_32",
+      "round_of_16",
+      "quarter_final",
+      "semi_final",
+      "third_place_playoff",
+      "final"
+    ],
     "draw_allowed": false,
-    "draw_resolution_policy": "TBD",
-    "simulation_note": "If the match-level model outputs Win/Draw/Loss probabilities, knockout simulation must define how draw probability is redistributed or resolved."
+    "draw_resolution_policy": "정규 90분 무승부 시 연장 30분(15분x2), 이후 승부차기",
+    "simulation_note": "W/D/L 확률 모델 사용 시 knockout에서 Draw 확률을 home/away 승리로 재배분하는 정책을 명시적으로 정의·기록할 것(예: 비례 배분 또는 50:50 + Elo 가중)."
   },
   "rounds": [
     {
       "round": "round_of_32",
+      "match_count": 16,
+      "start_date": "2026-06-28",
       "matches": [
         {
-          "match_id": "R32_M01",
-          "slot_home": "TBD",
-          "slot_away": "TBD",
-          "winner_advances_to": "R16_M01",
-          "notes": "Placeholder bracket slot."
-        },
-        {
-          "match_id": "R32_M02",
-          "slot_home": "TBD",
-          "slot_away": "TBD",
-          "winner_advances_to": "R16_M01",
-          "notes": "Placeholder bracket slot."
+          "match_id": "R32_TEMPLATE",
+          "slot_home": "조 순위 슬롯(예: Winner Group X)",
+          "slot_away": "조 순위 또는 3위 풀 슬롯",
+          "winner_advances_to": "R16_TEMPLATE",
+          "notes": "3위 팀 매칭은 어느 조에서 3위 8팀이 나오는지에 따라 달라짐(ESPN 확인). 슬롯 확정은 FIFA 공식 대진표 기준."
         }
       ]
     },
     {
       "round": "round_of_16",
+      "match_count": 8,
+      "start_date": "2026-07-04",
       "matches": [
         {
-          "match_id": "R16_M01",
-          "slot_home": "Winner R32_M01",
-          "slot_away": "Winner R32_M02",
-          "winner_advances_to": "QF_M01",
-          "notes": "Derived from previous round winners."
+          "match_id": "R16_TEMPLATE",
+          "slot_home": "Winner R32",
+          "slot_away": "Winner R32",
+          "winner_advances_to": "QF_TEMPLATE",
+          "notes": ""
         }
       ]
     },
     {
       "round": "quarter_final",
+      "match_count": 4,
       "matches": [
         {
-          "match_id": "QF_M01",
-          "slot_home": "TBD",
-          "slot_away": "TBD",
-          "winner_advances_to": "SF_M01",
-          "notes": "Placeholder."
+          "match_id": "QF_TEMPLATE",
+          "slot_home": "Winner R16",
+          "slot_away": "Winner R16",
+          "winner_advances_to": "SF_TEMPLATE",
+          "notes": ""
         }
       ]
     },
     {
       "round": "semi_final",
+      "match_count": 2,
       "matches": [
         {
-          "match_id": "SF_M01",
-          "slot_home": "TBD",
-          "slot_away": "TBD",
+          "match_id": "SF_TEMPLATE",
+          "slot_home": "Winner QF",
+          "slot_away": "Winner QF",
           "winner_advances_to": "FINAL",
-          "notes": "Placeholder."
+          "notes": ""
         }
       ]
     },
     {
       "round": "final",
+      "match_count": 1,
+      "date": "2026-07-19",
+      "venue": "MetLife Stadium, East Rutherford, NJ",
       "matches": [
         {
           "match_id": "FINAL",
-          "slot_home": "Winner SF_M01",
-          "slot_away": "Winner SF_M02",
+          "slot_home": "Winner SF_1",
+          "slot_away": "Winner SF_2",
           "winner_advances_to": "CHAMPION",
-          "notes": "Final champion probability target."
+          "notes": ""
         }
       ]
     }
   ],
   "outputs": {
-    "round_advancement_probabilities": "reports/simulation_summary.csv",
-    "champion_probabilities": "reports/champion_probabilities.csv"
+    "round_advancement_probabilities": "reports/round_advancement_probabilities.csv",
+    "champion_probabilities": "reports/champion_probabilities.csv",
+    "simulation_summary": "reports/simulation_summary.csv"
   }
 }
