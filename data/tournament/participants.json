@@ -1,57 +1,69 @@
 {
-  "data_status": "SKELETON_NOT_OFFICIAL",
-  "source_note": "Structure-only file for Phase 2-3 development. Replace TBD values after confirming official FIFA 2026 participants, qualification status, and group draw from authoritative sources.",
-  "last_updated": "2026-06-11",
+  "data_status": "WEB_VERIFIED_PENDING_TEAM_REVIEW",
+  "source_note": "2025-12-05 워싱턴 DC 최종 조 추첨 + 2026-03 플레이오프 결과 반영. 출처: ESPN, Yahoo Sports, Wikipedia 2026 FIFA World Cup Group A-L (2026-06-12 조회). 팀이 FIFA 공식 페이지(fifa.com)와 교차 확인 후 data_status를 VERIFIED로 변경할 것.",
+  "verification_sources": [
+    "https://www.espn.com/soccer/story/_/id/47108758/2026-fifa-world-cup-format-tiebreakers-fixtures-schedule",
+    "https://sports.yahoo.com/soccer/article/2026-world-cup-schedule-qualified-teams-groups-match-dates-fixtures-how-to-watch-050724214.html",
+    "https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_Group_A"
+  ],
+  "last_updated": "2026-06-12",
   "tournament": {
     "name": "2026 FIFA World Cup",
-    "host_countries": [
-      "Canada",
-      "Mexico",
-      "United States"
-    ],
+    "host_countries": ["Canada", "Mexico", "United States"],
     "expected_team_count": 48,
-    "notes": "Host and tournament metadata must be verified against official sources before model use. This file is not an official participant list."
+    "group_count": 12,
+    "dates": "2026-06-11 ~ 2026-07-19",
+    "final_venue": "MetLife Stadium, East Rutherford, New Jersey",
+    "notes": "12개 조(A~L), 조별 4팀. 조 1·2위 + 3위 상위 8팀이 32강 진출."
   },
   "participants": [
-    {
-      "team_id": "TBD_001",
-      "canonical_name": "TBD",
-      "fifa_code": "TBD",
-      "group": "TBD",
-      "qualification_status": "TBD",
-      "notes": "Placeholder. Replace after official qualification and group confirmation."
-    },
-    {
-      "team_id": "KOR",
-      "canonical_name": "Korea Republic",
-      "fifa_code": "KOR",
-      "group": "TBD",
-      "qualification_status": "TBD",
-      "notes": "Korea-related application case placeholder. Verify official qualification and group before model use."
-    },
-    {
-      "team_id": "USA",
-      "canonical_name": "United States",
-      "fifa_code": "USA",
-      "group": "TBD",
-      "qualification_status": "TBD",
-      "notes": "Placeholder for interface design. Verify official tournament metadata before model use."
-    },
-    {
-      "team_id": "MEX",
-      "canonical_name": "Mexico",
-      "fifa_code": "MEX",
-      "group": "TBD",
-      "qualification_status": "TBD",
-      "notes": "Placeholder for interface design. Verify official tournament metadata before model use."
-    },
-    {
-      "team_id": "CAN",
-      "canonical_name": "Canada",
-      "fifa_code": "CAN",
-      "group": "TBD",
-      "qualification_status": "TBD",
-      "notes": "Placeholder for interface design. Verify official tournament metadata before model use."
-    }
+    {"team_id": "MEX", "canonical_name": "Mexico", "fifa_code": "MEX", "group": "A", "qualification_status": "host", "notes": "개최국"},
+    {"team_id": "RSA", "canonical_name": "South Africa", "fifa_code": "RSA", "group": "A", "qualification_status": "qualified_CAF", "notes": ""},
+    {"team_id": "KOR", "canonical_name": "Korea Republic", "fifa_code": "KOR", "group": "A", "qualification_status": "qualified_AFC", "notes": "한국 응용 케이스 대상. 조별 3경기 모두 멕시코 개최 도시(과달라하라/몬테레이)."},
+    {"team_id": "CZE", "canonical_name": "Czechia", "fifa_code": "CZE", "group": "A", "qualification_status": "qualified_UEFA_playoff_D", "notes": "UEFA 플레이오프 Path D 승자(덴마크전 승부차기 승)"},
+    {"team_id": "CAN", "canonical_name": "Canada", "fifa_code": "CAN", "group": "B", "qualification_status": "host", "notes": "개최국"},
+    {"team_id": "BIH", "canonical_name": "Bosnia and Herzegovina", "fifa_code": "BIH", "group": "B", "qualification_status": "qualified_UEFA_playoff_A", "notes": "UEFA 플레이오프 Path A 승자"},
+    {"team_id": "QAT", "canonical_name": "Qatar", "fifa_code": "QAT", "group": "B", "qualification_status": "qualified_AFC", "notes": ""},
+    {"team_id": "SUI", "canonical_name": "Switzerland", "fifa_code": "SUI", "group": "B", "qualification_status": "qualified_UEFA", "notes": ""},
+    {"team_id": "BRA", "canonical_name": "Brazil", "fifa_code": "BRA", "group": "C", "qualification_status": "qualified_CONMEBOL", "notes": ""},
+    {"team_id": "MAR", "canonical_name": "Morocco", "fifa_code": "MAR", "group": "C", "qualification_status": "qualified_CAF", "notes": ""},
+    {"team_id": "HAI", "canonical_name": "Haiti", "fifa_code": "HAI", "group": "C", "qualification_status": "qualified_CONCACAF", "notes": ""},
+    {"team_id": "SCO", "canonical_name": "Scotland", "fifa_code": "SCO", "group": "C", "qualification_status": "qualified_UEFA", "notes": ""},
+    {"team_id": "USA", "canonical_name": "United States", "fifa_code": "USA", "group": "D", "qualification_status": "host", "notes": "개최국"},
+    {"team_id": "PAR", "canonical_name": "Paraguay", "fifa_code": "PAR", "group": "D", "qualification_status": "qualified_CONMEBOL", "notes": ""},
+    {"team_id": "AUS", "canonical_name": "Australia", "fifa_code": "AUS", "group": "D", "qualification_status": "qualified_AFC", "notes": ""},
+    {"team_id": "TUR", "canonical_name": "Turkey", "fifa_code": "TUR", "group": "D", "qualification_status": "qualified_UEFA_playoff_C", "notes": "표기 주의: Türkiye/Turkey 혼용"},
+    {"team_id": "GER", "canonical_name": "Germany", "fifa_code": "GER", "group": "E", "qualification_status": "qualified_UEFA", "notes": ""},
+    {"team_id": "CUW", "canonical_name": "Curacao", "fifa_code": "CUW", "group": "E", "qualification_status": "qualified_CONCACAF", "notes": "월드컵 첫 출전. 표기 주의: Curaçao"},
+    {"team_id": "CIV", "canonical_name": "Cote d'Ivoire", "fifa_code": "CIV", "group": "E", "qualification_status": "qualified_CAF", "notes": "표기 주의: Ivory Coast 혼용"},
+    {"team_id": "ECU", "canonical_name": "Ecuador", "fifa_code": "ECU", "group": "E", "qualification_status": "qualified_CONMEBOL", "notes": ""},
+    {"team_id": "NED", "canonical_name": "Netherlands", "fifa_code": "NED", "group": "F", "qualification_status": "qualified_UEFA", "notes": ""},
+    {"team_id": "JPN", "canonical_name": "Japan", "fifa_code": "JPN", "group": "F", "qualification_status": "qualified_AFC", "notes": ""},
+    {"team_id": "SWE", "canonical_name": "Sweden", "fifa_code": "SWE", "group": "F", "qualification_status": "qualified_UEFA_playoff_B", "notes": "UEFA 플레이오프 Path B 승자"},
+    {"team_id": "TUN", "canonical_name": "Tunisia", "fifa_code": "TUN", "group": "F", "qualification_status": "qualified_CAF", "notes": ""},
+    {"team_id": "BEL", "canonical_name": "Belgium", "fifa_code": "BEL", "group": "G", "qualification_status": "qualified_UEFA", "notes": ""},
+    {"team_id": "EGY", "canonical_name": "Egypt", "fifa_code": "EGY", "group": "G", "qualification_status": "qualified_CAF", "notes": ""},
+    {"team_id": "IRN", "canonical_name": "Iran", "fifa_code": "IRN", "group": "G", "qualification_status": "qualified_AFC", "notes": ""},
+    {"team_id": "NZL", "canonical_name": "New Zealand", "fifa_code": "NZL", "group": "G", "qualification_status": "qualified_OFC", "notes": ""},
+    {"team_id": "ESP", "canonical_name": "Spain", "fifa_code": "ESP", "group": "H", "qualification_status": "qualified_UEFA", "notes": ""},
+    {"team_id": "CPV", "canonical_name": "Cape Verde", "fifa_code": "CPV", "group": "H", "qualification_status": "qualified_CAF", "notes": "표기 주의: Cabo Verde 혼용"},
+    {"team_id": "KSA", "canonical_name": "Saudi Arabia", "fifa_code": "KSA", "group": "H", "qualification_status": "qualified_AFC", "notes": ""},
+    {"team_id": "URU", "canonical_name": "Uruguay", "fifa_code": "URU", "group": "H", "qualification_status": "qualified_CONMEBOL", "notes": ""},
+    {"team_id": "FRA", "canonical_name": "France", "fifa_code": "FRA", "group": "I", "qualification_status": "qualified_UEFA", "notes": ""},
+    {"team_id": "SEN", "canonical_name": "Senegal", "fifa_code": "SEN", "group": "I", "qualification_status": "qualified_CAF", "notes": ""},
+    {"team_id": "IRQ", "canonical_name": "Iraq", "fifa_code": "IRQ", "group": "I", "qualification_status": "qualified_interconf_playoff_2", "notes": "대륙간 플레이오프 Path 2 승자"},
+    {"team_id": "NOR", "canonical_name": "Norway", "fifa_code": "NOR", "group": "I", "qualification_status": "qualified_UEFA", "notes": ""},
+    {"team_id": "ARG", "canonical_name": "Argentina", "fifa_code": "ARG", "group": "J", "qualification_status": "qualified_CONMEBOL", "notes": "디펜딩 챔피언"},
+    {"team_id": "ALG", "canonical_name": "Algeria", "fifa_code": "ALG", "group": "J", "qualification_status": "qualified_CAF", "notes": ""},
+    {"team_id": "AUT", "canonical_name": "Austria", "fifa_code": "AUT", "group": "J", "qualification_status": "qualified_UEFA", "notes": ""},
+    {"team_id": "JOR", "canonical_name": "Jordan", "fifa_code": "JOR", "group": "J", "qualification_status": "qualified_AFC", "notes": "월드컵 첫 출전"},
+    {"team_id": "POR", "canonical_name": "Portugal", "fifa_code": "POR", "group": "K", "qualification_status": "qualified_UEFA", "notes": ""},
+    {"team_id": "COD", "canonical_name": "DR Congo", "fifa_code": "COD", "group": "K", "qualification_status": "qualified_interconf_playoff_1", "notes": "대륙간 플레이오프 Path 1 승자(2026-03-31 확정)"},
+    {"team_id": "UZB", "canonical_name": "Uzbekistan", "fifa_code": "UZB", "group": "K", "qualification_status": "qualified_AFC", "notes": "월드컵 첫 출전"},
+    {"team_id": "COL", "canonical_name": "Colombia", "fifa_code": "COL", "group": "K", "qualification_status": "qualified_CONMEBOL", "notes": ""},
+    {"team_id": "ENG", "canonical_name": "England", "fifa_code": "ENG", "group": "L", "qualification_status": "qualified_UEFA", "notes": ""},
+    {"team_id": "CRO", "canonical_name": "Croatia", "fifa_code": "CRO", "group": "L", "qualification_status": "qualified_UEFA", "notes": ""},
+    {"team_id": "GHA", "canonical_name": "Ghana", "fifa_code": "GHA", "group": "L", "qualification_status": "qualified_CAF", "notes": ""},
+    {"team_id": "PAN", "canonical_name": "Panama", "fifa_code": "PAN", "group": "L", "qualification_status": "qualified_CONCACAF", "notes": ""}
   ]
 }
