@@ -115,7 +115,24 @@ Alignment gap:
 - The GitHub preprocessing pipeline does not yet reproduce the team lead's 52-feature contract.
 - It does not yet implement Elo scraping/merge-as-of as the primary strength feature source.
 - It does not yet generate EWMA form, rolling four-year statistics, tournament weights, or `wc2026_matches.csv` in the same form as the team lead baseline.
-- It now records the shared preprocessed schema as the canonical model-input contract, but schema validation tests and script reproduction remain follow-up work.
+- It now records the shared preprocessed schema as the canonical model-input contract and validates the schema with tests, but full script reproduction remains follow-up work.
+
+## Scaffolded GitHub modules
+
+The repository now has scaffold modules that map the team lead preprocessing workflow into code locations. These modules define responsibilities and minimal function contracts only; most production logic intentionally remains unimplemented until follow-up PRs.
+
+| Module | Responsibility | Current status |
+| --- | --- | --- |
+| `src/data/team_name_normalization.py` | Team-name alias loading and home/away name normalization. | Scaffold only. |
+| `src/data/elo_scraping.py` | Historical Elo source refresh and generated Elo artifact policy. | Scaffold only. |
+| `src/data/elo_join.py` | Merge-as-of style home/away Elo enrichment and `delta_elo`. | Input validation plus scaffold. |
+| `src/features/form_features.py` | EWMA short-term form, missing flags, and `gap_form`. | Scaffold only. |
+| `src/features/rolling_features.py` | Four-year rolling goals, results, rates, and gap features. | Scaffold only. |
+| `src/features/tournament_weights.py` | Tournament-importance sample-weight creation. | Minimal weight-vector helper plus scaffold. |
+| `src/features/wc_history_features.py` | World Cup participation/title features and gaps. | Input validation plus scaffold. |
+| `src/features/team_lead_feature_contract.py` | Load and validate the 52-feature schema contract. | Lightweight helper implemented. |
+
+Generated CSV artifacts remain outside Git by default.
 
 ## Required GitHub realignment plan
 
@@ -125,9 +142,19 @@ Alignment gap:
 - Add a schema contract document for the 52-feature list.
 - Add generated-artifact policy notes for team lead preprocessing outputs.
 
-### PR 2: Preprocessing module structure
+### PR 2: Schema validation tests
 
-Create or refactor modules toward:
+Add tests that verify:
+
+- `data/schema/team_lead_features.json` contains exactly 52 model features.
+- `X_train.csv` and `X_test.csv`, when generated locally, contain the same feature columns.
+- score/result leakage columns are excluded from model input.
+- labels are limited to `0`, `1`, `2`.
+- train/test split follows `2022-01-01`.
+
+### PR 3: Preprocessing module scaffold
+
+Create scaffold modules for:
 
 - `src/data/team_name_normalization.py`
 - `src/data/elo_scraping.py`
@@ -137,16 +164,6 @@ Create or refactor modules toward:
 - `src/features/tournament_weights.py`
 - `src/features/wc_history_features.py`
 - `src/features/team_lead_feature_contract.py`
-
-### PR 3: Schema validation tests
-
-Add tests that verify:
-
-- `data/schema/team_lead_features.json` contains exactly 52 model features.
-- `X_train.csv` and `X_test.csv`, when generated locally, contain the same feature columns.
-- score/result leakage columns are excluded from model input.
-- labels are limited to `0`, `1`, `2`.
-- train/test split follows `2022-01-01`.
 
 ### PR 4: Team lead preprocessing reproduction
 
@@ -183,7 +200,7 @@ Important boundary:
 
 ## Presentation-safe wording
 
-> We are realigning the GitHub project to the team lead preprocessing baseline. The shared preprocessing work already defines a richer 52-feature model-input contract using Elo, EWMA form, four-year rolling team performance, tournament weights, World Cup history, host flags, and continent features. The GitHub repository has documented that schema contract and should now validate and reproduce the pipeline before making model-performance or tournament-simulation claims.
+> We are realigning the GitHub project to the team lead preprocessing baseline. The shared preprocessing work already defines a richer 52-feature model-input contract using Elo, EWMA form, four-year rolling team performance, tournament weights, World Cup history, host flags, and continent features. The GitHub repository has documented and tested that schema contract and scaffolded module locations for reproducing the pipeline. Full preprocessing reproduction, model-performance evidence, and tournament-simulation claims remain follow-up work.
 
 ## Unsafe wording
 
@@ -197,4 +214,4 @@ Avoid these claims until follow-up implementation and tests are complete:
 
 ## Immediate next action
 
-Create a follow-up PR that adds schema validation tests for `data/schema/team_lead_features.json` before refactoring the full preprocessing code.
+Create follow-up PRs that implement one scaffolded module at a time, starting with team-name normalization and Elo join inputs before generating any model-training CSV artifacts.
