@@ -98,4 +98,3 @@ def test_round_of_32_status_is_official_source_aligned_but_not_complete_simulati
     assert bracket["third_place_allocation"]["status"] == (
         "ANNEXE_C_PENDING_MACHINE_READABLE_CONVERSION"
     )
-}
