@@ -15,7 +15,7 @@ Primary outputs:
 - Calibrated match probabilities for simulation input
 - Tournament-simulation-ready probability tables
 - Group-stage and knockout simulation scaffolding
-- Champion probabilities as a later simulation output
+- Champion probabilities only after verified simulation evidence
 
 The Korea Republic path is preserved as a reproducible filtered use case and legacy smoke-test path. It is useful for demonstration, regression checks, and presentation examples, but it is not the main modeling scope.
 
@@ -86,12 +86,12 @@ All source rows should keep source URL, owner, license/terms status, download da
 
 ## Baseline Models
 
-Implemented / near-term baseline:
+Implemented baseline:
 
 - Logistic Regression
 - Random Forest
 
-Expansion candidates:
+Near-term candidates:
 
 - Ranking/context-only global baseline
 - Team-identifier comparison baseline for memorization-risk review
