@@ -10,6 +10,8 @@ The project should be described as a global-first 2026 FIFA World Cup match pred
 
 The repository now contains evidence that raw source validation and preprocessing validation were executed successfully for the current real-data workflow. However, tournament-level claims such as final advancement probabilities, Round of 32 bracket mapping, and champion probabilities still require official FIFA rule verification and reproducible simulation evidence.
 
+New alignment note: as of the 2026-06-15 shared team materials review, the GitHub project should be realigned to the team lead preprocessing baseline before further modeling or final simulation claims.
+
 ## Current Verified Evidence
 
 Evidence currently recorded in `docs/real_raw_validation_2026-06-12.md`:
@@ -33,13 +35,27 @@ Evidence currently recorded in `docs/real_raw_validation_2026-06-12.md`:
 | --- | --- | --- |
 | Project direction | Global-first | Primary scope is global match-level prediction. |
 | Korea Republic path | Preserved | Use as filtered demonstration and legacy smoke-test path. |
+| Team lead preprocessing alignment | New baseline selected | See `docs/team_lead_preprocessing_alignment_2026-06-15.md`; code reproduction and schema tests are follow-up work. |
 | Raw source validation | Passed evidence recorded | Evidence exists, but generated raw files are not committed. |
-| Preprocessing validation | Passed evidence recorded | Duplicate feature-row handling has been fixed. |
+| Preprocessing validation | Realignment required | Previous validation evidence exists, but the repository must now align to the team lead 52-feature preprocessing contract. |
 | FIFA rules verification | Documented for review | See `docs/fifa_2026_rules_verification.md`; implementation and tests still need follow-up PRs. |
-| Tournament participants/schedule/bracket | Web-verified / pending data alignment | Must not be presented as final FIFA-implemented bracket data until Article 12.6 and Annexe C are encoded and tested. |
+| Tournament participants/schedule/bracket | Article 12.6 mapping aligned; Annexe C pending | Must not be presented as complete tournament simulation support until Annexe C is encoded and tested. |
 | Baseline metrics | Requires current reproducible run evidence | Do not overclaim final performance from older MVP reports. |
 | Calibration | Pipeline-ready | Use after baseline evidence is stable. |
-| Simulation/champion probabilities | Not final | Requires official rules implementation, Annexe C data conversion, and reproducible simulation output. |
+| Simulation/champion probabilities | Not final | Requires official rules implementation, Annexe C data conversion, team-lead-aligned model inputs, and reproducible simulation output. |
+
+## Team Lead Preprocessing Alignment Note
+
+The team lead preprocessing alignment note is tracked in:
+
+- `docs/team_lead_preprocessing_alignment_2026-06-15.md`
+
+Status summary:
+
+- The shared team materials define a richer 52-feature model-input contract.
+- The reference outputs include `results_preprocessed.csv`, `X_train.csv`, `X_test.csv`, `y_train.csv`, `y_test.csv`, `w_train.csv`, `features.json`, and `wc2026_matches.csv`.
+- These are generated artifacts and should not be committed by default.
+- GitHub should next add schema-contract documentation and tests before refactoring the full preprocessing pipeline.
 
 ## FIFA Rules Verification Note
 
@@ -58,11 +74,12 @@ Status summary:
 
 Use this wording in README, reports, slides, and team discussion:
 
-> The project has a global-first ML pipeline for international football match Win/Draw/Loss prediction. Real raw data source validation and preprocessing validation evidence have been recorded. Korea Republic remains a reproducible filtered demonstration path. FIFA 2026 tournament rules have been reviewed and documented, but final simulation outputs and champion-probability claims still require rule implementation, Annexe C data conversion, and reproducible simulation evidence.
+> The project has a global-first ML pipeline for international football match Win/Draw/Loss prediction. We are realigning the GitHub implementation to the team lead preprocessing baseline, which defines a 52-feature model-input contract using Elo, EWMA form, rolling four-year team performance, tournament weights, World Cup history, host flags, and continent features. FIFA 2026 tournament rules have been reviewed and partially implemented, but final simulation outputs and champion-probability claims still require team-lead-aligned model evidence, Annexe C data conversion, and reproducible simulation results.
 
 Avoid these claims unless new evidence is added:
 
 - The full 2026 World Cup prediction system is complete.
+- The GitHub code fully reproduces the team lead preprocessing pipeline.
 - Champion probabilities are final.
 - Tournament bracket mapping is fully implemented and tested.
 - Annexe C third-place combinations are fully implemented.
@@ -71,15 +88,15 @@ Avoid these claims unless new evidence is added:
 
 ## Recommended Next Actions
 
-1. Decide whether validated source manifest rows should remain `pending` or move to `verified`.
-2. Align `data/tournament/bracket.json` with official Article 12.6 Round of 32 mapping.
-3. Add bracket mapping tests.
-4. Implement or clearly separate full Article 13 group-stage tiebreakers from the current provisional ranking utility.
+1. Add a schema contract document for the team lead 52-feature preprocessing baseline.
+2. Add tests that validate the 52-feature contract and label encoding.
+3. Refactor GitHub preprocessing modules to reproduce the team lead pipeline without committing generated CSVs by default.
+4. Decide whether validated source manifest rows should remain `pending` or move to `verified`.
 5. Store FIFA ranking snapshot metadata for ranking fallback reproducibility.
 6. Convert Annexe C 495 third-place qualifier combinations into machine-readable CSV/JSON.
 7. Add tests covering all Annexe C combinations.
-8. Re-run global baseline training from the agreed validated data snapshot.
-9. Record global baseline metrics with run date, data snapshot, and command history.
+8. Re-run team-lead-aligned baseline training from the agreed data snapshot.
+9. Record metrics with run date, data snapshot, command history, and feature schema version.
 10. Run calibration and record Log Loss / Brier Score before and after calibration.
 11. Define knockout draw-resolution policy before tournament simulation.
 12. Generate simulation outputs only after the above checks pass.
@@ -90,6 +107,7 @@ Before final presentation, confirm:
 
 - [ ] `docs/real_raw_validation_2026-06-12.md` is referenced as evidence.
 - [ ] `docs/fifa_2026_rules_verification.md` is referenced as rules-verification evidence.
+- [ ] `docs/team_lead_preprocessing_alignment_2026-06-15.md` is referenced as the preprocessing alignment baseline.
 - [ ] Generated artifacts are not treated as committed source of truth.
 - [ ] Korea Republic results are described as a filtered use case, not the full project scope.
 - [ ] FIFA rules are marked as documented/verified only at the source-review level until implementation tests pass.
@@ -100,6 +118,6 @@ Before final presentation, confirm:
 
 Current status label:
 
-`VALIDATION_EVIDENCE_RECORDED__FIFA_RULES_DOCUMENTED__SIMULATION_IMPLEMENTATION_PENDING`
+`VALIDATION_EVIDENCE_RECORDED__TEAM_LEAD_PREPROCESSING_ALIGNMENT_REQUIRED__SIMULATION_IMPLEMENTATION_PENDING`
 
-This label is intentionally conservative. It reflects that the data and preprocessing gates have evidence and official FIFA rules have been documented, while the tournament simulation layer still needs implementation alignment, Annexe C data conversion, tests, and reproducible output evidence.
+This label is intentionally conservative. It reflects that prior data and preprocessing gates have evidence, official FIFA rules have been documented, and the project is now being realigned to the team lead preprocessing baseline before final modeling and simulation claims.
