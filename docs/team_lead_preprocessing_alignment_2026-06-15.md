@@ -59,7 +59,12 @@ The team lead baseline uses:
 
 ## Feature contract
 
-The model input contract should move to the 52-feature list in `features.json`.
+The model input contract is now recorded in:
+
+- `docs/team_lead_feature_contract.md`
+- `data/schema/team_lead_features.json`
+
+The contract is based on the 52-feature list in the shared preprocessing artifact `features.json`.
 
 Feature families:
 
@@ -110,7 +115,7 @@ Alignment gap:
 - The GitHub preprocessing pipeline does not yet reproduce the team lead's 52-feature contract.
 - It does not yet implement Elo scraping/merge-as-of as the primary strength feature source.
 - It does not yet generate EWMA form, rolling four-year statistics, tournament weights, or `wc2026_matches.csv` in the same form as the team lead baseline.
-- It does not yet record the shared preprocessed schema as the canonical model-input contract.
+- It now records the shared preprocessed schema as the canonical model-input contract, but schema validation tests and script reproduction remain follow-up work.
 
 ## Required GitHub realignment plan
 
@@ -137,8 +142,8 @@ Create or refactor modules toward:
 
 Add tests that verify:
 
-- `features.json` contains exactly 52 model features.
-- `X_train.csv` and `X_test.csv` contain the same feature columns.
+- `data/schema/team_lead_features.json` contains exactly 52 model features.
+- `X_train.csv` and `X_test.csv`, when generated locally, contain the same feature columns.
 - score/result leakage columns are excluded from model input.
 - labels are limited to `0`, `1`, `2`.
 - train/test split follows `2022-01-01`.
@@ -178,7 +183,7 @@ Important boundary:
 
 ## Presentation-safe wording
 
-> We are realigning the GitHub project to the team lead preprocessing baseline. The shared preprocessing work already defines a richer 52-feature model-input contract using Elo, EWMA form, four-year rolling team performance, tournament weights, World Cup history, host flags, and continent features. The GitHub repository should now reproduce and validate that pipeline before making model-performance or tournament-simulation claims.
+> We are realigning the GitHub project to the team lead preprocessing baseline. The shared preprocessing work already defines a richer 52-feature model-input contract using Elo, EWMA form, four-year rolling team performance, tournament weights, World Cup history, host flags, and continent features. The GitHub repository has documented that schema contract and should now validate and reproduce the pipeline before making model-performance or tournament-simulation claims.
 
 ## Unsafe wording
 
@@ -192,4 +197,4 @@ Avoid these claims until follow-up implementation and tests are complete:
 
 ## Immediate next action
 
-Create a follow-up PR that adds a machine-readable feature schema document and tests for the 52-feature contract before refactoring the full preprocessing code.
+Create a follow-up PR that adds schema validation tests for `data/schema/team_lead_features.json` before refactoring the full preprocessing code.
