@@ -1,6 +1,9 @@
-model,accuracy,macro_f1,log_loss,brier_score,role
-Soft Voting,0.6465,0.5273,0.8000,0.4668,main_candidate
-Logistic Full,0.6450,0.5148,0.8058,0.4683,linear_baseline
-XGBoost,0.6452,0.5286,0.8073,0.4698,nonlinear_candidate
-Random Forest,0.6147,0.5660,0.8415,0.4931,draw_reference
-Poisson,0.6332,0.4674,0.8161,0.4751,score_explanation
+model,accuracy,macro_f1,log_loss,brier_score,role,source_note
+Soft Voting,0.6465,0.5273,0.8000,0.4668,main_probability_candidate,latest_drive_review
+Logistic Full,0.6450,0.5148,0.8058,0.4683,strong_linear_baseline,latest_drive_review
+XGBoost,0.6452,0.5286,0.8073,0.4698,nonlinear_candidate,latest_drive_review
+Stacking,0.6430,,0.8060,,complexity_limited_gain,latest_drive_review
+LightGBM,0.6392,0.5366,0.8135,0.4720,fast_training_candidate,latest_drive_review
+Poisson,0.6332,0.4674,0.8161,0.4751,score_explanation_auxiliary,latest_drive_review
+Logistic Elo-only,0.6261,0.4621,0.8290,0.4834,elo_baseline,latest_drive_review
+Random Forest,0.6147,0.5660,0.8415,0.4931,draw_sensitivity_reference,latest_drive_review
