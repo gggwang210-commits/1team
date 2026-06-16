@@ -1,0 +1,32 @@
+project:
+  name: 2026_fifa_world_cup_prediction
+  target: win_draw_loss_probability
+
+data:
+  train_size: 41299
+  validation_size: 4498
+  raw_data_path: data/raw/matches.csv
+  processed_data_path: data/processed/model_dataset.csv
+
+split:
+  method: fixed_validation_split
+  random_seed: 42
+
+models:
+  logistic_elo_only: true
+  logistic_full: true
+  random_forest: true
+  xgboost: true
+  lightgbm: true
+  poisson: true
+  soft_voting: true
+  stacking: true
+
+outputs:
+  metrics_csv: outputs/model_comparison_metrics.csv
+  metrics_json: outputs/model_comparison_metrics.json
+
+notes:
+  soft_voting_role: current_main_probability_model_candidate
+  poisson_role: auxiliary_expected_score_explanation_model
+  simulation_status: not_final_until_fifa_rules_are_verified
