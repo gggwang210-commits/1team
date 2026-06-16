@@ -48,13 +48,28 @@ Current model interpretation:
 
 ## Current Reference Metrics
 
+These values are synced from the latest Drive review document dated 2026-06-16.
+
 | Model | Accuracy | Macro-F1 | Log Loss | Brier Score | Role |
 |---|---:|---:|---:|---:|---|
 | Soft Voting | 0.6465 | 0.5273 | 0.8000 | 0.4668 | Main probability model candidate |
 | Logistic Full | 0.6450 | 0.5148 | 0.8058 | 0.4683 | Strong linear baseline |
 | XGBoost | 0.6452 | 0.5286 | 0.8073 | 0.4698 | Nonlinear candidate |
-| Random Forest | 0.6147 | 0.5660 | 0.8415 | 0.4931 | Draw sensitivity reference |
+| Stacking | 0.6430 | N/A | 0.8060 | N/A | Limited gain relative to complexity |
+| LightGBM | 0.6392 | 0.5366 | 0.8135 | 0.4720 | Fast training candidate |
 | Poisson | 0.6332 | 0.4674 | 0.8161 | 0.4751 | Score explanation auxiliary |
+| Logistic Elo-only | 0.6261 | 0.4621 | 0.8290 | 0.4834 | Elo baseline |
+| Random Forest | 0.6147 | 0.5660 | 0.8415 | 0.4931 | Draw sensitivity reference |
+
+## Latest Drive Sync Notes
+
+The latest Drive review states that all reviewed models used the same train/validation split and 52-feature contract. It also identifies draw prediction as a common weak point and recommends follow-up work on hyperparameter tuning, feature-importance interpretation, Poisson score-combination logic, Korea scenario analysis, and draw improvement.
+
+GitHub tracking document:
+
+```text
+docs/drive_sync_latest_model_results_2026-06-16.md
+```
 
 ## Global-first Project Scope
 
