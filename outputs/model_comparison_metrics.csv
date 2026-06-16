@@ -1,0 +1,6 @@
+model,accuracy,macro_f1,log_loss,brier_score,role
+Soft Voting,0.6465,0.5273,0.8000,0.4668,main_candidate
+Logistic Full,0.6450,0.5148,0.8058,0.4683,linear_baseline
+XGBoost,0.6452,0.5286,0.8073,0.4698,nonlinear_candidate
+Random Forest,0.6147,0.5660,0.8415,0.4931,draw_reference
+Poisson,0.6332,0.4674,0.8161,0.4751,score_explanation
