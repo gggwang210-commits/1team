@@ -4,7 +4,7 @@
 
 Machine learning based prediction system for 2026 FIFA World Cup match outcomes.
 
-The repository prioritizes a **global match prediction pipeline first**, with Korea Republic preserved as a reproducible filtered use case and legacy smoke-test path.
+The repository prioritizes a **global match prediction pipeline**, with Korea Republic preserved as a reproducible filtered use case and legacy smoke-test path.
 
 ## Scope Summary
 
