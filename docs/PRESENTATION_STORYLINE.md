@@ -1,39 +1,248 @@
-# 발표 스토리라인: 생활습관 기반 허리 통증 위험 예측
+# Presentation Storyline: 2026 FIFA World Cup Match Outcome Prediction
 
-## 슬라이드 1: 타이틀
-- **제목**: 생활습관 데이터 기반 만성 허리 통증 위험 예측 및 주요 위험요인 분석
-- **부제**: 미래융합교육원 1팀 머신러닝 프로젝트
-- **주의사항**: 본 과제는 교육용 분석이며 의료 진단 도구가 아님을 명시
+## Presentation position
 
-## 슬라이드 2: 문제 정의 (Why?)
-- 요통은 전 세계적으로 장애 부담이 가장 큰 질환 중 하나 (WHO 근거)
-- 생활습관(수면, 활동, 흡연)과 신체 지표(BMI, 허리둘레)를 통해 위험군을 사전에 스크리닝할 수 있는가?
+This project should be presented as a **global match-level Win/Draw/Loss probability prediction project**.
 
-## 슬라이드 3: 데이터 전략 (Data)
-- **데이터원**: CDC NHANES 2009-2010 (미국 국립보건통계센터)
-- **샘플 수**: 4,734명 (정제 후)
-- **타겟**: 6주 이상 지속된 허리 통증 (양성 비율 19.4%)
+Korea Republic is not the primary modeling scope anymore. Korea Republic should be presented as:
 
-## 슬라이드 4: 데이터 전처리 (Preprocessing)
-- 복합 모듈 병합 (ARQ, PAQ, BMX, SLQ, SMQ, DEMO)
-- 타겟 재코딩: Skip 응답을 음성군으로 올바르게 분류하여 데이터 무결성 확보
-- 결측치 처리 및 피처 엔지니어링 과정 설명
+- an interpretable application case,
+- a filtered demonstration path,
+- and a legacy smoke-test path for checking whether the pipeline works end to end.
 
-## 슬라이드 5: 모델링 결과 (Modeling)
-- Logistic Regression vs Random Forest 비교
-- **핵심 지표**: Recall(재현율) 강조 (위험군을 놓치지 않는 모델)
-- Confusion Matrix 및 ROC Curve 시각화 제시
+Champion probability, knockout simulation, and full tournament simulation should be presented as **future extension work** unless the team has completed and verified the related rule logic and generated reproducible outputs.
 
-## 슬라이드 6: 주요 위험 신호 (Insights)
-- Permutation Importance 결과 제시
-- **Top 3**: 허리둘레, 흡연 경험, 수면 부족
-- "인과관계"가 아닌 "통계적 관련 신호"임을 강조
+---
 
-## 슬라이드 7: 한계 및 향후 과제 (Future Work)
-- **한계**: 단면 연구의 특성, 미국 데이터의 지역적 특성
-- **확장**: 한국 질병관리청 국민건강영양조사(KNHANES) 데이터로 모델 확장 제안
-- **마무리**: 예방 중심의 생활습관 가이드라인 제시 가능성
+## Slide 1: Title
 
-## 슬라이드 8: Q&A 및 면책 조항
-- 의료 전문가의 상담을 대체할 수 없음을 재강조
-- 질문 및 답변
+**Title**  
+2026 FIFA World Cup Match Outcome Probability Prediction
+
+**Subtitle**  
+Global Win/Draw/Loss probability modeling with Korea Republic as an application case
+
+**One-line message**  
+Our team builds a machine-learning pipeline that estimates match-level Win/Draw/Loss probabilities from historical international football data and pre-match features.
+
+---
+
+## Slide 2: Problem Definition
+
+**Question**  
+Can we estimate the probability of Win, Draw, and Loss before an international football match?
+
+**Why this problem matters**
+
+- Football match outcomes are uncertain and difficult to explain with a single deterministic prediction.
+- Draw outcomes are especially difficult because they are often less frequent and more context-dependent.
+- A probability output is more useful than a single forced prediction because it shows uncertainty.
+
+**Recommended wording**
+
+> Instead of saying one team will definitely win, our model estimates the probability of Win, Draw, and Loss. This makes the result easier to interpret and safer to present as an educational machine-learning project.
+
+---
+
+## Slide 3: Project Scope
+
+### Current verified scope
+
+- Global match-level Win/Draw/Loss probability prediction
+- Korea Republic filtered view as an application example
+- Data preprocessing, feature generation, baseline training, prediction table, and model evaluation report
+- Streamlit display layer for checking generated outputs
+
+### Extension scope
+
+- Probability calibration improvement
+- Group-stage simulation
+- Round-of-32 allocation using official tournament rules
+- Knockout simulation
+- Champion probability
+
+**Scope warning**
+
+Do not present champion probability as a completed final result unless the full simulation and rule verification pipeline has been completed and reproduced.
+
+---
+
+## Slide 4: Data Strategy
+
+**Input data concept**
+
+- Historical international match records
+- Match date
+- Home team and away team
+- Final score, used only for label creation
+- Neutral venue flag where available
+- Ranking or Elo-style pre-match strength indicators where available
+
+**Target definition**
+
+- Global path: `target_result` from the home-team perspective
+- Korea path: `target_result_korea_perspective` from Korea Republic's perspective
+
+**Important distinction**
+
+The final score is not used as a model input. It is used only to create the historical Win/Draw/Loss label.
+
+---
+
+## Slide 5: Pipeline Architecture
+
+Show this flow:
+
+```text
+raw match data
+-> standardized match table
+-> feature generation
+-> model training / model comparison
+-> probability output
+-> prediction table
+-> evaluation report
+-> Streamlit demo
+```
+
+**Explanation script**
+
+> The pipeline first standardizes raw football match records. Then it creates pre-match features such as ranking difference and neutral venue information. The model learns from historical labeled results and produces Win/Draw/Loss probabilities. Finally, the outputs are saved as reports and displayed in Streamlit.
+
+---
+
+## Slide 6: Leakage Control and Reliability
+
+**Key reliability controls**
+
+- Score columns are excluded from model input.
+- Result-like columns are excluded from model input.
+- Date columns are used for splitting or audit logic, not as direct predictive inputs.
+- Korea-specific labels and global labels are kept separate to avoid target confusion.
+- Generated outputs are separated by path where possible.
+
+**Recommended wording**
+
+> We separated label creation from model input features to reduce leakage risk. Final scores are necessary for creating historical labels, but they are not fed into the model as prediction features.
+
+---
+
+## Slide 7: Modeling Result
+
+### If local execution has been reproduced
+
+Show locally generated:
+
+- `reports/baseline_metrics.csv`
+- `reports/model_evaluation.md`
+- `reports/prediction_table.csv`
+
+Use this wording:
+
+> These metrics were generated by rerunning the repository pipeline in our environment.
+
+### If using Drive-reviewed reference metrics
+
+Use this wording:
+
+> The table below is a Drive-reviewed reference result preserved in GitHub for presentation consistency. It should be interpreted as a reviewed benchmark table, not as proof that every model was freshly retrained by this command.
+
+**Recommended interpretation**
+
+- Soft Voting can be described as the current main probability-model candidate if supported by the reference table.
+- Poisson can be described as an auxiliary expected-score explanation model.
+- Draw prediction should be described as a known difficulty and improvement target.
+
+---
+
+## Slide 8: Demo Output
+
+Show one or more of the following:
+
+- Streamlit screen capture
+- Prediction table preview
+- Model evaluation markdown report
+- Data quality summary
+
+**Recommended demo explanation**
+
+> The demo is designed as a lightweight presentation interface. It reads generated CSV and Markdown outputs, so the visible screen is connected to files produced by the pipeline.
+
+---
+
+## Slide 9: Limitations
+
+**Required limitations**
+
+- The project is educational and should not be used as betting, financial, or official sports guidance.
+- Historical match data may not fully represent future 2026 tournament conditions.
+- Draw prediction remains difficult.
+- Tournament simulation depends on official FIFA rule mapping and additional implementation.
+- Champion probability is extension work unless fully verified.
+- Model results depend on data quality, feature coverage, and evaluation split design.
+
+**Recommended wording**
+
+> The current model is useful for demonstrating a reproducible machine-learning workflow, but it should not be interpreted as an official prediction of the 2026 FIFA World Cup.
+
+---
+
+## Slide 10: Future Work
+
+**Technical improvements**
+
+- Add stronger feature engineering from recent form, Elo trends, rest days, and tournament context.
+- Improve draw prediction using class balancing, calibration, or specialized modeling.
+- Add probability calibration reports and calibration curves.
+- Connect match-level probabilities to group-stage simulation.
+- Complete official Round-of-32 and Annexe C logic before champion probability claims.
+
+**Product direction**
+
+- Country-specific dashboard view
+- Match probability explanation panel
+- Scenario simulation mode
+- Team comparison screen
+
+---
+
+## Slide 11: Final Conclusion
+
+**Recommended final message**
+
+> Our project demonstrates how historical international football data can be transformed into a reproducible Win/Draw/Loss probability prediction pipeline. The current core result is match-level probability estimation, while Korea Republic is used as an application case. Tournament simulation and champion probability are realistic extensions, but they require additional FIFA rule verification and further validation.
+
+---
+
+## Q&A Preparation
+
+### Q1. Is this predicting the actual 2026 FIFA World Cup winner?
+
+No. The verified scope is match-level Win/Draw/Loss probability prediction. Champion probability is future extension work unless the full tournament simulation pipeline has been completed and verified.
+
+### Q2. Why use probabilities instead of one predicted result?
+
+Football outcomes are uncertain. Probability outputs show how confident or uncertain the model is across Win, Draw, and Loss.
+
+### Q3. What is Korea Republic's role?
+
+Korea Republic is an application case and legacy smoke-test path. The main project direction is global match-level prediction.
+
+### Q4. Are all model-comparison numbers freshly reproduced from code?
+
+Only say yes if the full training workflow has been rerun and the outputs were regenerated. Otherwise, describe those values as Drive-reviewed reference metrics preserved in GitHub.
+
+### Q5. What is the biggest current limitation?
+
+The biggest limitation is that match-level probability prediction and full tournament champion simulation are different problems. The project has a strong path toward simulation, but official rule mapping and additional validation are required before claiming champion probability.
+
+---
+
+## Final slide checklist
+
+- [ ] The title uses FIFA project wording, not the old back-pain project wording.
+- [ ] Korea Republic is described as an application case, not the only target.
+- [ ] Champion probability is marked as extension work unless fully verified.
+- [ ] Drive reference metrics are not misrepresented as fresh retraining output.
+- [ ] Streamlit screenshot or generated report output is included.
+- [ ] Limitations are explicit.
+- [ ] Q&A answers avoid overclaiming.
