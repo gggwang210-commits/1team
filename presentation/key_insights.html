@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주요 분석 인사이트: 모델 기여 변수 분석</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: #FFFFFF; color: #0F172A; }
+        .slide-container { width: 1280px; min-height: 720px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-start; padding: 60px 48px 0; }
+        .slide-title { font-weight: 900; font-size: 32px; line-height: 1.2; margin-bottom: 20px; border-bottom: 1px solid #0F172A; padding-bottom: 10px; }
+        
+        .insight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; }
+        .content-stack { display: flex; flex-direction: column; }
+        .feature-box { border: 1px solid #0F172A; padding: 20px; margin-bottom: 12px; }
+        .feature-box:last-child { margin-bottom: 0; }
+        .feature-title { font-weight: 900; font-size: 20px; color: #FF4433; margin-bottom: 12px; text-transform: uppercase; }
+        .feature-desc { font-weight: 500; font-size: 16px; line-height: 1.6; }
+        
+        .importance-visual { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #0F172A; padding: 8px; }
+        .importance-visual img { height: 320px; width: auto; object-fit: contain; }
+        .visual-label { font-weight: 900; font-size: 14px; margin-top: 8px; }
+
+        .footer-note { margin-top: 32px; font-weight: 500; font-size: 14px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <h2 class="slide-title">주요 분석 인사이트: 모델 분류 기여 변수</h2>
+        
+        <div class="insight-grid">
+            <div class="importance-visual">
+                <img src="/home/ubuntu/1team/outputs/permutation_importance.png" alt="Feature Importance">
+                <div class="visual-label">Permutation Importance (Random Forest)</div>
+            </div>
+            
+            <div class="content-stack">
+                <div class="feature-box">
+                    <div class="feature-title">신체 지표: 허리둘레 (Waist)</div>
+                    <div class="feature-desc">
+                        모델상에서 가장 높은 변수 중요도를 보임. BMI보다 허리둘레가 통증 위험군 분류에 더 강한 <strong>통계적 관련 신호</strong>로 관찰됨.
+                    </div>
+                </div>
+                
+                <div class="feature-box">
+                    <div class="feature-title">생활습관: 흡연 및 수면</div>
+                    <div class="feature-desc">
+                        흡연 경험(`smoke_100`)과 부족한 수면 시간이 모델의 예측력에 기여함. 이는 생활습관이 신체 통증 위험과 <strong>연관성</strong>이 있음을 시사함.
+                    </div>
+                </div>
+
+                <div class="feature-box">
+                    <div class="feature-title">데이터의 한계 및 해석</div>
+                    <div class="feature-desc">
+                        단면 설문 데이터(Cross-sectional)의 특성상 변수 간의 <strong>인과관계(Causality)를 단정할 수 없으며</strong>, 통계적 상관관계로 해석해야 함.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-note">
+            * 본 분석 결과는 NHANES 2009-2010 표본 집단에 국한된 통계적 경향성입니다.
+        </div>
+    </div>
+</body>
+</html>

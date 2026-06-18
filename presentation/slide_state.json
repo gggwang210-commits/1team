@@ -1,0 +1,93 @@
+{
+  "project_info": {
+    "title": "생활습관 데이터 기반 만성 허리 통증 위험 예측 및 주요 위험요인 분석",
+    "created": 1781666127.252,
+    "last_updated": 1781752723.541,
+    "total_slides": 8
+  },
+  "slides": [
+    {
+      "id": "title_slide",
+      "state": "edited",
+      "pageNum": 1
+    },
+    {
+      "id": "problem_definition",
+      "state": "edited",
+      "pageNum": 2
+    },
+    {
+      "id": "data_strategy",
+      "state": "edited",
+      "pageNum": 3
+    },
+    {
+      "id": "data_preprocessing",
+      "state": "edited",
+      "pageNum": 4
+    },
+    {
+      "id": "modeling_results",
+      "state": "edited",
+      "pageNum": 5
+    },
+    {
+      "id": "key_insights",
+      "state": "edited",
+      "pageNum": 6
+    },
+    {
+      "id": "limitations_future_work",
+      "state": "edited",
+      "pageNum": 7
+    },
+    {
+      "id": "qa_disclaimer",
+      "state": "edited",
+      "pageNum": 8
+    }
+  ],
+  "outline": [
+    {
+      "id": "title_slide",
+      "title": "생활습관 데이터 기반 만성 허리 통증 위험 예측 및 주요 위험요인 분석",
+      "summary": "미래융합교육원 1팀 머신러닝 프로젝트. 본 과제는 교육용 분석이며 의료 진단 도구가 아님을 명시."
+    },
+    {
+      "id": "problem_definition",
+      "title": "문제 정의: 왜 허리 통증 예측이 중요한가?",
+      "summary": "요통은 전 세계적으로 장애 부담이 가장 큰 질환 중 하나. 생활습관과 신체 지표를 통해 위험군을 사전에 스크리닝할 수 있는지 탐색."
+    },
+    {
+      "id": "data_strategy",
+      "title": "데이터 전략: NHANES 2009-2010 활용",
+      "summary": "CDC NHANES 2009-2010 데이터 사용. 정제 후 4,734명 샘플. 6주 이상 지속된 허리 통증을 타겟으로 정의 (양성 비율 19.4%).",
+      "image_plan": "/home/ubuntu/1team/reports/feature_distribution.png - The image displays 'Target Distribution (0: No Pain, 1: Back Pain)' which directly relates to the 'Target: 6주 이상 지속된 허리 통증 (양성 비율 19.4%)' mentioned in the slide. It also shows BMI, Age, and Sedentary Minutes by Back Pain Status, which are relevant to the data strategy."
+    },
+    {
+      "id": "data_preprocessing",
+      "title": "데이터 전처리: 복합 데이터 통합 및 타겟 재코딩",
+      "summary": "NHANES 복합 모듈 병합. Skip 응답을 음성군으로 올바르게 분류하여 데이터 무결성 확보. 결측치 처리 및 피처 엔지니어링 과정 설명."
+    },
+    {
+      "id": "modeling_results",
+      "title": "모델링 결과: Logistic Regression vs Random Forest",
+      "summary": "Logistic Regression과 Random Forest 모델 비교. Recall(재현율)을 핵심 지표로 강조. Confusion Matrix 및 ROC Curve 시각화 제시."
+    },
+    {
+      "id": "key_insights",
+      "title": "주요 위험 신호: 허리둘레, 흡연, 수면",
+      "summary": "Permutation Importance 결과 제시. 허리둘레, 흡연 경험, 수면 부족이 Top 3 위험 신호. \"인과관계\"가 아닌 \"통계적 관련 신호\"임을 강조."
+    },
+    {
+      "id": "limitations_future_work",
+      "title": "한계 및 향후 과제: 모델 확장 가능성",
+      "summary": "단면 연구의 특성, 미국 데이터의 지역적 특성 한계. 한국 국민건강영양조사(KNHANES) 데이터로 모델 확장 제안. 예방 중심의 생활습관 가이드라인 제시 가능성."
+    },
+    {
+      "id": "qa_disclaimer",
+      "title": "Q&A 및 면책 조항",
+      "summary": "본 과제는 교육용 분석이며 의료 진단 도구가 아님을 재강조. 의료 전문가의 상담을 대체할 수 없음을 명시."
+    }
+  ]
+}

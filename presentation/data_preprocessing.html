@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 전처리: 복합 데이터 통합 및 타겟 재코딩</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;900&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: #FFFFFF; color: #0F172A; }
+        .slide-container { width: 1280px; min-height: 720px; box-sizing: border-box; display: flex; flex-direction: column; padding: 80px 60px 0; }
+        .header { border-bottom: 1px solid #0F172A; padding-bottom: 20px; margin-bottom: 40px; }
+        .slide-title { font-weight: 900; font-size: 32px; line-height: 1.2; text-transform: uppercase; }
+        
+        .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background-color: #0F172A; border: 1px solid #0F172A; }
+        .grid-item { background-color: #FFFFFF; padding: 30px; min-height: 400px; }
+        .step-num { font-family: 'Roboto Mono', monospace; font-weight: 500; font-size: 16px; color: #0055FF; margin-bottom: 15px; display: block; }
+        .step-title { font-weight: 900; font-size: 24px; margin-bottom: 20px; border-bottom: 1px solid #0F172A; padding-bottom: 10px; }
+        .step-content { font-family: 'Roboto Mono', monospace; font-weight: 500; font-size: 16px; line-height: 1.6; }
+        .highlight { color: #FF4433; font-weight: 900; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2 class="slide-title">데이터 전처리: 복합 데이터 통합 및 타겟 재코딩</h2>
+        </div>
+        <div class="grid-container">
+            <div class="grid-item">
+                <span class="step-num">STEP 01</span>
+                <h3 class="step-title">복합 모듈 통합</h3>
+                <p class="step-content">
+                    NHANES의 분산된 데이터를 SEQN(응답자 번호) 기준으로 병합:<br><br>
+                    - ARQ (관절염/통증)<br>
+                    - PAQ (신체활동)<br>
+                    - BMX (신체계측)<br>
+                    - SLQ/SMQ (수면/흡연)<br>
+                    - DEMO (인구통계)
+                </p>
+            </div>
+            <div class="grid-item">
+                <span class="step-num">STEP 02</span>
+                <h3 class="step-title">타겟 재코딩</h3>
+                <p class="step-content">
+                    데이터 무결성 확보를 위한 로직 설계:<br><br>
+                    - <span class="highlight">Skip 응답 처리</span>: 통증 증상 없음(ARQ010=2) 응답자를 음성군(0)으로 명시적 분류<br>
+                    - 양성군 정의: 6주 이상 지속된 허리 통증(ARQ020D=4)
+                </p>
+            </div>
+            <div class="grid-item">
+                <span class="step-num">STEP 03</span>
+                <h3 class="step-title">피처 엔지니어링</h3>
+                <p class="step-content">
+                    분석 최적화 변수 생성:<br><br>
+                    - 좌식 시간(PAD680) 정제<br>
+                    - BMI 및 허리둘레 추출<br>
+                    - 수면 시간 및 흡연 여부 이진화<br>
+                    - <span class="highlight">결측치 처리</span>: 주요 변수 누락 행 제거 (N=4,734 확정)
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

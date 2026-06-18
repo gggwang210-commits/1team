@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 전략: NHANES 2009-2010 활용</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: #FFFFFF; color: #0F172A; }
+        .slide-container { width: 1280px; min-height: 720px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; padding: 80px 48px 24px; }
+        .slide-title { font-family: 'Inter', sans-serif; font-weight: 900; font-size: 32px; line-height: 1.2; color: #0F172A; margin-bottom: 40px; text-align: left; width: 100%; }
+        .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; width: 100%; align-items: start; }
+        .text-content { display: flex; flex-direction: column; text-align: left; }
+        .text-item { margin-bottom: 20px; }
+        .text-item strong { font-weight: 900; font-size: 20px; color: #0F172A; display: block; margin-bottom: 5px; }
+        .text-item span { font-weight: 500; font-size: 16px; line-height: 1.5; color: #0F172A; }
+        .image-content { display: flex; justify-content: center; align-items: center; height: 100%; }
+        .image-content img { max-width: 100%; max-height: 450px; object-fit: contain; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <h2 class="slide-title">데이터 전략: NHANES 2009-2010 활용</h2>
+        <div class="content-grid">
+            <div class="text-content">
+                <div class="text-item">
+                    <strong>데이터원</strong>
+                    <span>CDC NHANES 2009-2010 (미국 국립보건통계센터)</span>
+                </div>
+                <div class="text-item">
+                    <strong>샘플 수</strong>
+                    <span>4,734명 (정제 후)</span>
+                </div>
+                <div class="text-item">
+                    <strong>타겟</strong>
+                    <span>6주 이상 지속된 허리 통증 (양성 비율 19.4%)</span>
+                </div>
+            </div>
+            <div class="image-content">
+                <img src="/home/ubuntu/1team/reports/feature_distribution.png" alt="Feature Distribution">
+            </div>
+        </div>
+    </div>
+</body>
+</html>

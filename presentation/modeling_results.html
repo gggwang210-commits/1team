@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>모델링 결과 및 고도화 실험</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: #FFFFFF; color: #0F172A; }
+        .slide-container { width: 1280px; min-height: 720px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: flex-start; padding: 60px 48px 0; }
+        .slide-title { font-weight: 900; font-size: 32px; line-height: 1.2; margin-bottom: 30px; border-bottom: 1px solid #0F172A; padding-bottom: 10px; }
+        
+        .table-container { width: 100%; margin-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; font-family: 'Inter', monospace; font-weight: 500; font-size: 16px; }
+        th, td { border: 1px solid #0F172A; padding: 8px; text-align: center; }
+        th { background-color: #0F172A; color: #FFFFFF; font-weight: 900; }
+        .highlight-row { background-color: rgba(0, 85, 255, 0.05); }
+        .accent-text { color: #FF4433; font-weight: 900; }
+
+        .visuals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+        .visual-item { display: flex; flex-direction: column; align-items: center; }
+        .visual-item img { height: 180px; width: auto; object-fit: contain; border: 1px solid #0F172A; }
+        .visual-label { font-weight: 900; font-size: 14px; margin-top: 8px; text-transform: uppercase; }
+
+        .insight-box { margin-top: 12px; border-top: 1px solid #0F172A; padding-top: 10px; }
+        .insight-text { font-weight: 500; font-size: 18px; line-height: 1.5; }
+        .insight-text strong { font-weight: 900; color: #FF4433; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <h2 class="slide-title">모델링 결과: 성능 고도화 및 임계값 최적화</h2>
+        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Model Setting</th>
+                        <th>Accuracy</th>
+                        <th>Precision</th>
+                        <th>Recall</th>
+                        <th>F1-Score</th>
+                        <th>ROC-AUC</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="highlight-row">
+                        <td><strong>LR (Balanced, T=0.50)</strong></td>
+                        <td>0.600</td>
+                        <td>0.256</td>
+                        <td><span class="accent-text">0.563</span></td>
+                        <td><strong>0.352</strong></td>
+                        <td><strong>0.619</strong></td>
+                    </tr>
+                    <tr>
+                        <td>LR (Balanced, T=0.40)</td>
+                        <td>0.521</td>
+                        <td>0.219</td>
+                        <td><span class="accent-text">0.776</span></td>
+                        <td>0.341</td>
+                        <td>0.619</td>
+                    </tr>
+                    <tr>
+                        <td>Random Forest (Balanced)</td>
+                        <td>0.755</td>
+                        <td>0.333</td>
+                        <td>0.268</td>
+                        <td>0.297</td>
+                        <td>0.583</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="visuals-grid">
+            <div class="visual-item">
+                <img src="/home/ubuntu/1team/outputs/threshold_tradeoff.png" alt="Threshold Trade-off">
+                <div class="visual-label">Precision-Recall Trade-off</div>
+            </div>
+            <div class="visual-item">
+                <img src="/home/ubuntu/1team/outputs/roc_curve.png" alt="ROC Curve">
+                <div class="visual-label">ROC Curve (AUC 0.619)</div>
+            </div>
+        </div>
+
+        <div class="insight-box">
+            <p class="insight-text">
+                <strong>재현율(Recall)</strong> 극대화를 위해 임계값을 0.40으로 조정 시 위험군의 77.6% 탐지 가능. 
+                본 프로젝트는 <strong>스크리닝 효율성</strong>과 <strong>탐지 능력</strong>의 균형을 고려하여 임계값 0.50을 최종 제안함.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
